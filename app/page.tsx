@@ -177,6 +177,7 @@ export default function ProductRegistrationApp() {
         locations: locationsResult.data?.length || 0,
         purposes: purposesResult.data?.length || 0,
         categories: categoriesResult.data?.length || 0,
+        registrations: registrationsResult.data?.length || 0,
       })
 
       // Check if we have a real Supabase connection (not mock mode)
@@ -197,7 +198,6 @@ export default function ProductRegistrationApp() {
         setRegistrations(registrationsResult.data || [])
 
         console.log("📋 Registrations loaded:", registrationsResult.data?.length || 0)
-        console.log("📋 Current registrations state:", registrations.length)
 
         // Set default user if available
         if (usersResult.data && usersResult.data.length > 0) {
@@ -322,7 +322,7 @@ export default function ProductRegistrationApp() {
     })
 
     const registrationsSub = subscribeToRegistrations((newRegistrations) => {
-      console.log("📋 Registrations updated:", newRegistrations.length)
+      console.log("📋 Registrations updated via subscription:", newRegistrations.length)
       setRegistrations(newRegistrations)
     })
 
@@ -414,16 +414,19 @@ export default function ProductRegistrationApp() {
       }
 
       if (isSupabaseConnected) {
+        // AANGEPAST: gebruik de juiste kolom namen voor Supabase
         const registrationData = {
-          user: currentUser,
-          product: selectedProduct,
+          user_name: currentUser,
+          product_name: selectedProduct,
           location,
           purpose,
           timestamp: now.toISOString(),
           date: now.toISOString().split("T")[0],
           time: now.toTimeString().split(" ")[0],
-          qrcode: product?.qrcode,
+          qr_code: product?.qrcode,
         }
+
+        console.log("💾 Saving registration with data:", registrationData)
 
         const result = await saveRegistration(registrationData)
         if (result.error) {
@@ -431,7 +434,12 @@ export default function ProductRegistrationApp() {
           setImportError("Fout bij opslaan registratie")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          console.log("✅ Registration saved to Supabase")
+          console.log("✅ Registration saved to Supabase successfully")
+          // Refresh registrations data
+          const { data: updatedRegistrations } = await fetchRegistrations()
+          if (updatedRegistrations) {
+            setRegistrations(updatedRegistrations)
+          }
         }
       } else {
         setRegistrations((prev) => [newRegistration, ...prev])
