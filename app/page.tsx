@@ -146,6 +146,17 @@ export default function ProductRegistrationApp() {
   const [qrScanResult, setQrScanResult] = useState("")
   const [qrScanMode, setQrScanMode] = useState<"registration" | "product-management">("registration")
 
+  // FIXED: Helper function to save to localStorage
+  const saveToLocalStorage = () => {
+    console.log("💾 Saving all data to localStorage...")
+    localStorage.setItem("interflon-users", JSON.stringify(users))
+    localStorage.setItem("interflon-products", JSON.stringify(products))
+    localStorage.setItem("interflon-locations", JSON.stringify(locations))
+    localStorage.setItem("interflon-purposes", JSON.stringify(purposes))
+    localStorage.setItem("interflon-categories", JSON.stringify(categories))
+    localStorage.setItem("interflon-registrations", JSON.stringify(registrations))
+  }
+
   // Load data on component mount
   useEffect(() => {
     loadAllData()
@@ -346,42 +357,42 @@ export default function ProductRegistrationApp() {
     }
   }, [])
 
-  // Save to localStorage whenever data changes (fallback)
+  // FIXED: Save to localStorage whenever data changes (always, not just when not connected)
   useEffect(() => {
-    if (!isSupabaseConnected) {
+    if (users.length > 0) {
       localStorage.setItem("interflon-users", JSON.stringify(users))
     }
-  }, [users, isSupabaseConnected])
+  }, [users])
 
   useEffect(() => {
-    if (!isSupabaseConnected) {
+    if (products.length > 0) {
       localStorage.setItem("interflon-products", JSON.stringify(products))
     }
-  }, [products, isSupabaseConnected])
+  }, [products])
 
   useEffect(() => {
-    if (!isSupabaseConnected) {
+    if (locations.length > 0) {
       localStorage.setItem("interflon-locations", JSON.stringify(locations))
     }
-  }, [locations, isSupabaseConnected])
+  }, [locations])
 
   useEffect(() => {
-    if (!isSupabaseConnected) {
+    if (purposes.length > 0) {
       localStorage.setItem("interflon-purposes", JSON.stringify(purposes))
     }
-  }, [purposes, isSupabaseConnected])
+  }, [purposes])
 
   useEffect(() => {
-    if (!isSupabaseConnected) {
+    if (categories.length > 0) {
       localStorage.setItem("interflon-categories", JSON.stringify(categories))
     }
-  }, [categories, isSupabaseConnected])
+  }, [categories])
 
   useEffect(() => {
-    if (!isSupabaseConnected) {
+    if (registrations.length > 0) {
       localStorage.setItem("interflon-registrations", JSON.stringify(registrations))
     }
-  }, [registrations, isSupabaseConnected])
+  }, [registrations])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -617,8 +628,13 @@ export default function ProductRegistrationApp() {
         setProductEditInProgress(false)
       }, 3000)
     } else {
-      // Update in localStorage
-      setProducts((prev) => prev.map((p) => (p.id === originalProduct.id ? editingProduct : p)))
+      // FIXED: Update in localStorage mode
+      console.log("💾 Updating product in localStorage mode")
+      setProducts((prev) => {
+        const updated = prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p))
+        console.log("📊 Updated products array:", updated)
+        return updated
+      })
       setImportMessage("✅ Product bijgewerkt!")
       setTimeout(() => setImportMessage(""), 2000)
       setShowEditDialog(false)
