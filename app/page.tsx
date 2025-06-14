@@ -44,7 +44,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
-import { QrCode, ChevronDown } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Trash2, Search, X, QrCode, ChevronDown, Edit } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface Product {
   id: string
@@ -1050,11 +1053,713 @@ export default function ProductRegistrationApp() {
             </Card>
           </TabsContent>
 
-          {/* Add all other TabsContent sections here - users, products, categories, locations, purposes, history, statistics */}
+          <TabsContent value="users">
+            <Card className="shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">👥 Gebruikers Beheren</CardTitle>
+                <CardDescription>Voeg nieuwe gebruikers toe of verwijder bestaande</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="text"
+                      placeholder="Nieuwe gebruiker"
+                      value={newUserName}
+                      onChange={(e) => setNewUserName(e.target.value)}
+                    />
+                    <Button onClick={addNewUser} className="bg-orange-600 hover:bg-orange-700">
+                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="user-search" className="text-sm font-medium">
+                      Zoek gebruiker
+                    </Label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                      <Input
+                        id="user-search"
+                        type="text"
+                        placeholder="Zoek op naam..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="pl-8"
+                      />
+                      {userSearchQuery && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1 top-1 h-6 w-6 p-0"
+                          onClick={() => setUserSearchQuery("")}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600 mb-2">
+                    {getFilteredAndSortedUsers().length} van {users.length} gebruikers
+                    {userSearchQuery && ` (gefilterd op "${userSearchQuery}")`}
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Naam</TableHead>
+                        <TableHead className="text-right">Acties</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {getFilteredAndSortedUsers().length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
+                            {userSearchQuery
+                              ? `Geen gebruikers gevonden voor "${userSearchQuery}"`
+                              : "Geen gebruikers beschikbaar"}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        getFilteredAndSortedUsers().map((user) => (
+                          <TableRow key={user}>
+                            <TableCell>{user}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEditUser(user)}
+                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => removeUser(user)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="products">
+            <Card className="shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">📦 Producten Beheren</CardTitle>
+                <CardDescription>Voeg nieuwe producten toe of verwijder bestaande</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Input
+                      type="text"
+                      placeholder="Product naam"
+                      value={newProductName}
+                      onChange={(e) => setNewProductName(e.target.value)}
+                    />
+                    <Input
+                      type="text"
+                      placeholder="QR Code (optioneel)"
+                      value={newProductQrCode}
+                      onChange={(e) => setNewProductQrCode(e.target.value)}
+                    />
+                    <Select value={newProductCategory} onValueChange={setNewProductCategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Categorie" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Geen categorie</SelectItem>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={addNewProduct} className="bg-orange-600 hover:bg-orange-700">
+                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
+                    </Button>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Naam</TableHead>
+                        <TableHead>QR Code</TableHead>
+                        <TableHead>Categorie</TableHead>
+                        <TableHead className="text-right">Acties</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {products.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                            Geen producten beschikbaar
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        products.map((product) => (
+                          <TableRow key={product.id}>
+                            <TableCell>{product.name}</TableCell>
+                            <TableCell>
+                              {product.qrcode ? (
+                                <Badge variant="outline" className="font-mono text-xs">
+                                  {product.qrcode}
+                                </Badge>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {product.categoryId ? (
+                                <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200">
+                                  {categories.find((c) => c.id === product.categoryId)?.name || "-"}
+                                </Badge>
+                              ) : (
+                                "-"
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEditProduct(product)}
+                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => removeProduct(product)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="categories">
+            <Card className="shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">🗂️ Categorieën Beheren</CardTitle>
+                <CardDescription>Voeg nieuwe categorieën toe of verwijder bestaande</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="text"
+                      placeholder="Nieuwe categorie"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                    />
+                    <Button onClick={addNewCategory} className="bg-orange-600 hover:bg-orange-700">
+                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
+                    </Button>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Naam</TableHead>
+                        <TableHead className="text-right">Acties</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categories.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
+                            Geen categorieën beschikbaar
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        categories.map((category) => (
+                          <TableRow key={category.id}>
+                            <TableCell>{category.name}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEditCategory(category)}
+                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => removeCategory(category)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="locations">
+            <Card className="shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">📍 Locaties Beheren</CardTitle>
+                <CardDescription>Voeg nieuwe locaties toe of verwijder bestaande</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="text"
+                      placeholder="Nieuwe locatie"
+                      value={newLocationName}
+                      onChange={(e) => setNewLocationName(e.target.value)}
+                    />
+                    <Button onClick={addNewLocation} className="bg-orange-600 hover:bg-orange-700">
+                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
+                    </Button>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Naam</TableHead>
+                        <TableHead className="text-right">Acties</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {locations.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
+                            Geen locaties beschikbaar
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        locations.map((location) => (
+                          <TableRow key={location}>
+                            <TableCell>{location}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEditLocation(location)}
+                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => removeLocation(location)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="purposes">
+            <Card className="shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">🎯 Doelen Beheren</CardTitle>
+                <CardDescription>Voeg nieuwe doelen toe of verwijder bestaande</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="text"
+                      placeholder="Nieuw doel"
+                      value={newPurposeName}
+                      onChange={(e) => setNewPurposeName(e.target.value)}
+                    />
+                    <Button onClick={addNewPurpose} className="bg-orange-600 hover:bg-orange-700">
+                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
+                    </Button>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Naam</TableHead>
+                        <TableHead className="text-right">Acties</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {purposes.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
+                            Geen doelen beschikbaar
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        purposes.map((purpose) => (
+                          <TableRow key={purpose}>
+                            <TableCell>{purpose}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => handleEditPurpose(purpose)}
+                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="icon"
+                                  onClick={() => removePurpose(purpose)}
+                                  className="bg-red-500 hover:bg-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <Card className="shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">📋 Registratie Geschiedenis</CardTitle>
+                <CardDescription>Bekijk alle product registraties</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Datum</TableHead>
+                      <TableHead>Gebruiker</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Locatie</TableHead>
+                      <TableHead>Doel</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {registrations.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          Geen registraties beschikbaar
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      registrations.map((registration) => (
+                        <TableRow key={registration.id}>
+                          <TableCell>{new Date(registration.timestamp).toLocaleDateString("nl-NL")}</TableCell>
+                          <TableCell>{registration.user}</TableCell>
+                          <TableCell>{registration.product}</TableCell>
+                          <TableCell>{registration.location}</TableCell>
+                          <TableCell>{registration.purpose}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="statistics">
+            <Card className="shadow-sm">
+              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                <CardTitle className="flex items-center gap-2 text-xl">📊 Statistieken</CardTitle>
+                <CardDescription>Overzicht van alle registraties</CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 className="font-semibold text-blue-800">Totaal Registraties</h3>
+                    <p className="text-2xl font-bold text-blue-900">{registrations.length}</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <h3 className="font-semibold text-green-800">Actieve Gebruikers</h3>
+                    <p className="text-2xl font-bold text-green-900">{users.length}</p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <h3 className="font-semibold text-purple-800">Beschikbare Producten</h3>
+                    <p className="text-2xl font-bold text-purple-900">{products.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
-      {/* Add all dialogs and modals here */}
-    </div>
-  )
-}
+      {/* QR Scanner Modal */}
+      {showQrScanner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">QR Code Scanner</h3>
+            <div className="bg-gray-100 h-64 flex items-center justify-center rounded-lg mb-4">
+              <div className="text-center">
+                <QrCode className="w-16 h-16 mx-auto mb-2 text-gray-400" />
+                <p className="text-gray-600">Camera zou hier actief zijn</p>
+                <p className="text-sm text-gray-500 mt-2">Voor demo: voer handmatig een QR code in hieronder</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <Input
+                type="text"
+                placeholder="QR Code (voor demo)"
+                value={qrScanResult}
+                onChange={(e) => setQrScanResult(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button onClick={() => handleQrCodeDetected(qrScanResult)} disabled={!qrScanResult} className="flex-1">
+                  Gebruik QR Code
+                </Button>
+                <Button onClick={stopQrScanner} variant="outline" className="flex-1">
+                  Annuleren
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Product Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de productgegevens</DialogDescription>
+          </DialogHeader>
+          {editingProduct && (
+            <div className="space-y-4">
+              <div>
+                <Label>Product Naam</Label>
+                <Input
+                  value={editingProduct.name}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>QR Code</Label>
+                <Input
+                  value={editingProduct.qrcode || ""}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, qrcode: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Categorie</Label>
+                <Select
+                  value={editingProduct.categoryId || "none"}
+                  onValueChange={(value) =>
+                    setEditingProduct({ ...editingProduct, categoryId: value === "none" ? undefined : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Geen categorie</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveProduct} className="flex-1">
+                  Opslaan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditDialog(false)
+                    setEditingProduct(null)
+                    setOriginalProduct(null)
+                  }}
+                  className="flex-1"
+                >
+                  Annuleren
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gebruiker Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de gebruikersnaam</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Gebruikersnaam</Label>
+              <Input value={editingUser} onChange={(e) => setEditingUser(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveUser} className="flex-1">
+                Opslaan
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditUserDialog(false)
+                  setEditingUser("")
+                  setOriginalUser("")
+                }}
+                className="flex-1"
+              >
+                Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Categorie Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de categorienaam</DialogDescription>
+          </DialogHeader>
+          {editingCategory && (
+            <div className="space-y-4">
+              <div>
+                <Label>Categorienaam</Label>
+                <Input
+                  value={editingCategory.name}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveCategory} className="flex-1">
+                  Opslaan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditCategoryDialog(false)
+                    setEditingCategory(null)
+                    setOriginalCategory(null)
+                  }}
+                  className="flex-1"
+                >
+                  Annuleren
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Location Dialog */}
+      <Dialog open={showEditLocationDialog} onOpenChange={setShowEditLocationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Locatie Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de locatienaam</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Locatienaam</Label>
+              <Input value={editingLocation} onChange={(e) => setEditingLocation(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSaveLocation} className="flex-1">
+                Opslaan
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditLocationDialog(false)
+                  setEditingLocation("")
+                  setOriginalLocation("")
+                }}
+                className="flex-1"
+              >
+                Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Purpose Dialog */}
+      <Dialog open={showEditPurposeDialog} onOpenChange={setShowEditPurposeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Doel Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de doelnaam</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Doelnaam</Label>
+              <Input value={editingPurpose} onChange={(e) => setEditingPurpose(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSavePurpose} className="flex-1">
+                Opslaan
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditPurposeDialog(false)
+                  setEditingPurpose("")
+                  setOriginalPurpose("")
+                }}
+                className="flex-1"
+              >
+                Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>\
+      </Dialog>
