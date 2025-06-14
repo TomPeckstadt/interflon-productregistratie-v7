@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Search, X, QrCode, ChevronDown, Edit } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Supabase imports
 import {
@@ -39,6 +40,14 @@ import {
   subscribeToCategories,
   subscribeToRegistrations,
   isSupabaseConfigured,
+  updateUser,
+  updateLocation,
+  updatePurpose,
+  setProductEditInProgress,
+  setUserEditInProgress,
+  setCategoryEditInProgress,
+  setLocationEditInProgress,
+  setPurposeEditInProgress,
 } from "@/lib/supabase"
 
 // Types
@@ -1496,4 +1505,515 @@ export default function ProductRegistrationApp() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50\
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 className="font-semibold text-blue-800">Totaal Registraties</h3>
+                    <p className="text-2xl font-bold text-blue-900">{registrations.length}</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <h3 className="font-semibold text-green-800">Actieve Gebruikers</h3>
+                    <p className="text-2xl font-bold text-green-900">{users.length}</p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <h3 className="font-semibold text-purple-800">Beschikbare Producten</h3>
+                    <p className="text-2xl font-bold text-purple-900">{products.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* QR Scanner Modal */}
+      {showQrScanner && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">QR Code Scanner</h3>
+            <div className="bg-gray-100 h-64 flex items-center justify-center rounded-lg mb-4">
+              <div className="text-center">
+                <QrCode className="w-16 h-16 mx-auto mb-2 text-gray-400" />
+                <p className="text-gray-600">Camera zou hier actief zijn</p>
+                <p className="text-sm text-gray-500 mt-2">Voor demo: voer handmatig een QR code in hieronder</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <Input
+                type="text"
+                placeholder="QR Code (voor demo)"
+                value={qrScanResult}
+                onChange={(e) => setQrScanResult(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <Button onClick={() => handleQrCodeDetected(qrScanResult)} disabled={!qrScanResult} className="flex-1">
+                  Gebruik QR Code
+                </Button>
+                <Button onClick={stopQrScanner} variant="outline" className="flex-1">
+                  Annuleren
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Product Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de productgegevens</DialogDescription>
+          </DialogHeader>
+          {editingProduct && (
+            <div className="space-y-4">
+              <div>
+                <Label>Product Naam</Label>
+                <Input
+                  value={editingProduct.name}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>QR Code</Label>
+                <Input
+                  value={editingProduct.qrcode || ""}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, qrcode: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Categorie</Label>
+                <Select
+                  value={editingProduct.categoryId || "none"}
+                  onValueChange={(value) =>
+                    setEditingProduct({ ...editingProduct, categoryId: value === "none" ? undefined : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Geen categorie</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={async () => {
+                    if (!editingProduct || !originalProduct) return
+
+                    console.log("💾 Saving product changes:", {
+                      original: originalProduct,
+                      edited: editingProduct,
+                    })
+
+                    // FIXED: Use original product for comparison
+                    const hasChanges =
+                      editingProduct.name !== originalProduct.name ||
+                      editingProduct.qrcode !== originalProduct.qrcode ||
+                      editingProduct.categoryId !== originalProduct.categoryId
+
+                    if (!hasChanges) {
+                      console.log("⚠️ No changes detected")
+                      setShowEditDialog(false)
+                      return
+                    }
+
+                    if (isSupabaseConnected) {
+                      console.log("🔄 Pausing product subscription...")
+                      setProductEditInProgress(true)
+
+                      try {
+                        // Update in Supabase using ORIGINAL product ID
+                        const updateData = {
+                          name: editingProduct.name,
+                          qr_code: editingProduct.qrcode || null,
+                          category_id: editingProduct.categoryId || null,
+                        }
+
+                        console.log("📤 Updating product in Supabase:", {
+                          id: originalProduct.id,
+                          data: updateData,
+                        })
+
+                        // Import the updateProduct function
+                        const { updateProduct } = await import("@/lib/supabase")
+                        const result = await updateProduct(originalProduct.id, updateData)
+
+                        if (result.error) {
+                          console.error("❌ Error updating product:", result.error)
+                          setImportError("Fout bij bijwerken product")
+                          setTimeout(() => setImportError(""), 3000)
+                        } else {
+                          console.log("✅ Product updated in Supabase")
+
+                          // Update local state immediately
+                          setProducts((prev) =>
+                            prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p)),
+                          )
+
+                          setImportMessage("✅ Product bijgewerkt!")
+                          setTimeout(() => setImportMessage(""), 2000)
+                          setShowEditDialog(false)
+                        }
+                      } catch (error) {
+                        console.error("❌ Error in product update:", error)
+                        setImportError("Fout bij bijwerken product")
+                        setTimeout(() => setImportError(""), 3000)
+                      }
+
+                      // Re-enable subscription after 3 seconds
+                      setTimeout(() => {
+                        console.log("🔄 Re-enabling product subscription...")
+                        setProductEditInProgress(false)
+                      }, 3000)
+                    } else {
+                      // Update in localStorage
+                      setProducts((prev) => prev.map((p) => (p.id === originalProduct.id ? editingProduct : p)))
+                      setImportMessage("✅ Product bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
+                      setShowEditDialog(false)
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  Opslaan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditDialog(false)
+                    setEditingProduct(null)
+                    setOriginalProduct(null)
+                  }}
+                  className="flex-1"
+                >
+                  Annuleren
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gebruiker Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de gebruikersnaam</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Gebruikersnaam</Label>
+              <Input value={editingUser} onChange={(e) => setEditingUser(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  if (!editingUser.trim() || !originalUser) return
+
+                  const hasChanges = editingUser.trim() !== originalUser
+                  if (!hasChanges) {
+                    setShowEditUserDialog(false)
+                    return
+                  }
+
+                  if (isSupabaseConnected) {
+                    console.log("🔄 Pausing user subscription...")
+                    setUserEditInProgress(true)
+
+                    try {
+                      const result = await updateUser(originalUser, editingUser.trim())
+                      if (result.error) {
+                        console.error("❌ Error updating user:", result.error)
+                        setImportError("Fout bij bijwerken gebruiker")
+                        setTimeout(() => setImportError(""), 3000)
+                      } else {
+                        console.log("✅ User updated in Supabase")
+                        setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
+                        setImportMessage("✅ Gebruiker bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                        setShowEditUserDialog(false)
+                      }
+                    } catch (error) {
+                      console.error("❌ Error in user update:", error)
+                      setImportError("Fout bij bijwerken gebruiker")
+                      setTimeout(() => setImportError(""), 3000)
+                    }
+
+                    setTimeout(() => {
+                      console.log("🔄 Re-enabling user subscription...")
+                      setUserEditInProgress(false)
+                    }, 3000)
+                  } else {
+                    setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
+                    setImportMessage("✅ Gebruiker bijgewerkt!")
+                    setTimeout(() => setImportMessage(""), 2000)
+                    setShowEditUserDialog(false)
+                  }
+                }}
+                className="flex-1"
+              >
+                Opslaan
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditUserDialog(false)
+                  setEditingUser("")
+                  setOriginalUser("")
+                }}
+                className="flex-1"
+              >
+                Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Categorie Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de categorienaam</DialogDescription>
+          </DialogHeader>
+          {editingCategory && (
+            <div className="space-y-4">
+              <div>
+                <Label>Categorienaam</Label>
+                <Input
+                  value={editingCategory.name}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={async () => {
+                    if (!editingCategory || !originalCategory) return
+
+                    const hasChanges = editingCategory.name.trim() !== originalCategory.name
+                    if (!hasChanges) {
+                      setShowEditCategoryDialog(false)
+                      return
+                    }
+
+                    if (isSupabaseConnected) {
+                      console.log("🔄 Pausing category subscription...")
+                      setCategoryEditInProgress(true)
+
+                      try {
+                        const { updateCategory } = await import("@/lib/supabase")
+                        const result = await updateCategory(originalCategory.id, { name: editingCategory.name.trim() })
+                        if (result.error) {
+                          console.error("❌ Error updating category:", result.error)
+                          setImportError("Fout bij bijwerken categorie")
+                          setTimeout(() => setImportError(""), 3000)
+                        } else {
+                          console.log("✅ Category updated in Supabase")
+                          setCategories((prev) =>
+                            prev.map((c) => (c.id === originalCategory.id ? { ...editingCategory } : c)),
+                          )
+                          setImportMessage("✅ Categorie bijgewerkt!")
+                          setTimeout(() => setImportMessage(""), 2000)
+                          setShowEditCategoryDialog(false)
+                        }
+                      } catch (error) {
+                        console.error("❌ Error in category update:", error)
+                        setImportError("Fout bij bijwerken categorie")
+                        setTimeout(() => setImportError(""), 3000)
+                      }
+
+                      setTimeout(() => {
+                        console.log("🔄 Re-enabling category subscription...")
+                        setCategoryEditInProgress(false)
+                      }, 3000)
+                    } else {
+                      setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? editingCategory : c)))
+                      setImportMessage("✅ Categorie bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
+                      setShowEditCategoryDialog(false)
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  Opslaan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditCategoryDialog(false)
+                    setEditingCategory(null)
+                    setOriginalCategory(null)
+                  }}
+                  className="flex-1"
+                >
+                  Annuleren
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Location Dialog */}
+      <Dialog open={showEditLocationDialog} onOpenChange={setShowEditLocationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Locatie Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de locatienaam</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Locatienaam</Label>
+              <Input value={editingLocation} onChange={(e) => setEditingLocation(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  if (!editingLocation.trim() || !originalLocation) return
+
+                  const hasChanges = editingLocation.trim() !== originalLocation
+                  if (!hasChanges) {
+                    setShowEditLocationDialog(false)
+                    return
+                  }
+
+                  if (isSupabaseConnected) {
+                    console.log("🔄 Pausing location subscription...")
+                    setLocationEditInProgress(true)
+
+                    try {
+                      const result = await updateLocation(originalLocation, editingLocation.trim())
+                      if (result.error) {
+                        console.error("❌ Error updating location:", result.error)
+                        setImportError("Fout bij bijwerken locatie")
+                        setTimeout(() => setImportError(""), 3000)
+                      } else {
+                        console.log("✅ Location updated in Supabase")
+                        setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
+                        setImportMessage("✅ Locatie bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                        setShowEditLocationDialog(false)
+                      }
+                    } catch (error) {
+                      console.error("❌ Error in location update:", error)
+                      setImportError("Fout bij bijwerken locatie")
+                      setTimeout(() => setImportError(""), 3000)
+                    }
+
+                    setTimeout(() => {
+                      console.log("🔄 Re-enabling location subscription...")
+                      setLocationEditInProgress(false)
+                    }, 3000)
+                  } else {
+                    setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
+                    setImportMessage("✅ Locatie bijgewerkt!")
+                    setTimeout(() => setImportMessage(""), 2000)
+                    setShowEditLocationDialog(false)
+                  }
+                }}
+                className="flex-1"
+              >
+                Opslaan
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditLocationDialog(false)
+                  setEditingLocation("")
+                  setOriginalLocation("")
+                }}
+                className="flex-1"
+              >
+                Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Purpose Dialog */}
+      <Dialog open={showEditPurposeDialog} onOpenChange={setShowEditPurposeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Doel Bewerken</DialogTitle>
+            <DialogDescription>Wijzig de doelnaam</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Doelnaam</Label>
+              <Input value={editingPurpose} onChange={(e) => setEditingPurpose(e.target.value)} />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  if (!editingPurpose.trim() || !originalPurpose) return
+
+                  const hasChanges = editingPurpose.trim() !== originalPurpose
+                  if (!hasChanges) {
+                    setShowEditPurposeDialog(false)
+                    return
+                  }
+
+                  if (isSupabaseConnected) {
+                    console.log("🔄 Pausing purpose subscription...")
+                    setPurposeEditInProgress(true)
+
+                    try {
+                      const result = await updatePurpose(originalPurpose, editingPurpose.trim())
+                      if (result.error) {
+                        console.error("❌ Error updating purpose:", result.error)
+                        setImportError("Fout bij bijwerken doel")
+                        setTimeout(() => setImportError(""), 3000)
+                      } else {
+                        console.log("✅ Purpose updated in Supabase")
+                        setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
+                        setImportMessage("✅ Doel bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                        setShowEditPurposeDialog(false)
+                      }
+                    } catch (error) {
+                      console.error("❌ Error in purpose update:", error)
+                      setImportError("Fout bij bijwerken doel")
+                      setTimeout(() => setImportError(""), 3000)
+                    }
+
+                    setTimeout(() => {
+                      console.log("🔄 Re-enabling purpose subscription...")
+                      setPurposeEditInProgress(false)
+                    }, 3000)
+                  } else {
+                    setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
+                    setImportMessage("✅ Doel bijgewerkt!")
+                    setTimeout(() => setImportMessage(""), 2000)
+                    setShowEditPurposeDialog(false)
+                  }
+                }}
+                className="flex-1"
+              >
+                Opslaan
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditPurposeDialog(false)
+                  setEditingPurpose("")
+                  setOriginalPurpose("")
+                }}
+                className="flex-1"
+              >
+                Annuleren
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
