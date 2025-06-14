@@ -8,39 +8,6 @@ console.log("🔧 Supabase Configuration Check:")
 console.log("URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
 console.log("Key:", supabaseAnonKey ? "✅ Set" : "❌ Missing")
 
-// Global edit flags to pause subscriptions during edits
-let isProductEditInProgress = false
-let isUserEditInProgress = false
-let isCategoryEditInProgress = false
-let isLocationEditInProgress = false
-let isPurposeEditInProgress = false
-
-// Functions to control edit flags
-export const setProductEditInProgress = (value: boolean) => {
-  console.log(`🔧 Product edit in progress: ${value}`)
-  isProductEditInProgress = value
-}
-
-export const setUserEditInProgress = (value: boolean) => {
-  console.log(`🔧 User edit in progress: ${value}`)
-  isUserEditInProgress = value
-}
-
-export const setCategoryEditInProgress = (value: boolean) => {
-  console.log(`🔧 Category edit in progress: ${value}`)
-  isCategoryEditInProgress = value
-}
-
-export const setLocationEditInProgress = (value: boolean) => {
-  console.log(`🔧 Location edit in progress: ${value}`)
-  isLocationEditInProgress = value
-}
-
-export const setPurposeEditInProgress = (value: boolean) => {
-  console.log(`🔧 Purpose edit in progress: ${value}`)
-  isPurposeEditInProgress = value
-}
-
 // Check if Supabase is configured
 export const isSupabaseConfigured = () => {
   const configured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl.includes("supabase"))
@@ -92,7 +59,7 @@ interface Registration {
   created_at?: string
 }
 
-// Mock data for when Supabase is not configured OR when database is empty
+// Mock data for when Supabase is not configured
 const mockUsers = ["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"]
 const mockProducts: Product[] = [
   { id: "1", name: "Interflon Fin Super", qrcode: "IFLS001", categoryId: "1" },
@@ -111,7 +78,7 @@ const mockCategories: Category[] = [
 ]
 const mockRegistrations: Registration[] = []
 
-// Fetch functions with proper fallback
+// SIMPLIFIED: Fetch functions
 export const fetchUsers = async () => {
   if (!supabase) {
     console.log("📊 No Supabase - using mock users")
@@ -124,24 +91,15 @@ export const fetchUsers = async () => {
 
     if (error) {
       console.error("❌ Error fetching users:", error)
-      console.log("📊 Falling back to mock users")
-      return { data: mockUsers, error: null }
+      return { data: mockUsers, error }
     }
 
     const userNames = data?.map((user: any) => user.name) || []
     console.log(`📊 Fetched ${userNames.length} users from Supabase`)
-
-    // If database is empty, use mock data
-    if (userNames.length === 0) {
-      console.log("📊 Database empty - using mock users")
-      return { data: mockUsers, error: null }
-    }
-
-    return { data: userNames, error: null }
+    return { data: userNames.length > 0 ? userNames : mockUsers, error: null }
   } catch (error) {
     console.error("❌ Error in fetchUsers:", error)
-    console.log("📊 Falling back to mock users")
-    return { data: mockUsers, error: null }
+    return { data: mockUsers, error }
   }
 }
 
@@ -157,8 +115,7 @@ export const fetchProducts = async () => {
 
     if (error) {
       console.error("❌ Error fetching products:", error)
-      console.log("📊 Falling back to mock products")
-      return { data: mockProducts, error: null }
+      return { data: mockProducts, error }
     }
 
     const products =
@@ -173,18 +130,10 @@ export const fetchProducts = async () => {
       })) || []
 
     console.log(`📊 Fetched ${products.length} products from Supabase`)
-
-    // If database is empty, use mock data
-    if (products.length === 0) {
-      console.log("📊 Database empty - using mock products")
-      return { data: mockProducts, error: null }
-    }
-
-    return { data: products, error: null }
+    return { data: products.length > 0 ? products : mockProducts, error: null }
   } catch (error) {
     console.error("❌ Error in fetchProducts:", error)
-    console.log("📊 Falling back to mock products")
-    return { data: mockProducts, error: null }
+    return { data: mockProducts, error }
   }
 }
 
@@ -200,24 +149,15 @@ export const fetchLocations = async () => {
 
     if (error) {
       console.error("❌ Error fetching locations:", error)
-      console.log("📊 Falling back to mock locations")
-      return { data: mockLocations, error: null }
+      return { data: mockLocations, error }
     }
 
     const locationNames = data?.map((location: any) => location.name) || []
     console.log(`📊 Fetched ${locationNames.length} locations from Supabase`)
-
-    // If database is empty, use mock data
-    if (locationNames.length === 0) {
-      console.log("📊 Database empty - using mock locations")
-      return { data: mockLocations, error: null }
-    }
-
-    return { data: locationNames, error: null }
+    return { data: locationNames.length > 0 ? locationNames : mockLocations, error: null }
   } catch (error) {
     console.error("❌ Error in fetchLocations:", error)
-    console.log("📊 Falling back to mock locations")
-    return { data: mockLocations, error: null }
+    return { data: mockLocations, error }
   }
 }
 
@@ -233,24 +173,15 @@ export const fetchPurposes = async () => {
 
     if (error) {
       console.error("❌ Error fetching purposes:", error)
-      console.log("📊 Falling back to mock purposes")
-      return { data: mockPurposes, error: null }
+      return { data: mockPurposes, error }
     }
 
     const purposeNames = data?.map((purpose: any) => purpose.name) || []
     console.log(`📊 Fetched ${purposeNames.length} purposes from Supabase`)
-
-    // If database is empty, use mock data
-    if (purposeNames.length === 0) {
-      console.log("📊 Database empty - using mock purposes")
-      return { data: mockPurposes, error: null }
-    }
-
-    return { data: purposeNames, error: null }
+    return { data: purposeNames.length > 0 ? purposeNames : mockPurposes, error: null }
   } catch (error) {
     console.error("❌ Error in fetchPurposes:", error)
-    console.log("📊 Falling back to mock purposes")
-    return { data: mockPurposes, error: null }
+    return { data: mockPurposes, error }
   }
 }
 
@@ -266,8 +197,7 @@ export const fetchCategories = async () => {
 
     if (error) {
       console.error("❌ Error fetching categories:", error)
-      console.log("📊 Falling back to mock categories")
-      return { data: mockCategories, error: null }
+      return { data: mockCategories, error }
     }
 
     const categories =
@@ -277,18 +207,10 @@ export const fetchCategories = async () => {
       })) || []
 
     console.log(`📊 Fetched ${categories.length} categories from Supabase`)
-
-    // If database is empty, use mock data
-    if (categories.length === 0) {
-      console.log("📊 Database empty - using mock categories")
-      return { data: mockCategories, error: null }
-    }
-
-    return { data: categories, error: null }
+    return { data: categories.length > 0 ? categories : mockCategories, error: null }
   } catch (error) {
     console.error("❌ Error in fetchCategories:", error)
-    console.log("📊 Falling back to mock categories")
-    return { data: mockCategories, error: null }
+    return { data: mockCategories, error }
   }
 }
 
@@ -304,8 +226,7 @@ export const fetchRegistrations = async () => {
 
     if (error) {
       console.error("❌ Error fetching registrations:", error)
-      console.log("📊 Falling back to mock registrations")
-      return { data: mockRegistrations, error: null }
+      return { data: mockRegistrations, error }
     }
 
     const registrations =
@@ -326,122 +247,528 @@ export const fetchRegistrations = async () => {
     return { data: registrations, error: null }
   } catch (error) {
     console.error("❌ Error in fetchRegistrations:", error)
-    console.log("📊 Falling back to mock registrations")
-    return { data: mockRegistrations, error: null }
+    return { data: mockRegistrations, error }
   }
 }
 
-// Save functions - FORCE localStorage mode for now
+// SIMPLIFIED: Save functions
 export const saveUser = async (name: string) => {
-  console.log("💾 Saving user (localStorage mode):", name)
-  return { data: name, error: null }
+  if (!supabase) {
+    console.log("💾 No Supabase - mock save user:", name)
+    return { data: name, error: null }
+  }
+
+  try {
+    console.log("💾 Saving user to Supabase:", name)
+    const { data, error } = await supabase.from("users").insert([{ name }]).select()
+
+    if (error) {
+      console.error("❌ Error saving user:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ User saved to Supabase")
+    return { data: name, error: null }
+  } catch (error) {
+    console.error("❌ Error in saveUser:", error)
+    return { data: null, error }
+  }
 }
 
 export const saveProduct = async (product: Product) => {
-  console.log("💾 Saving product (localStorage mode):", product)
-  return { data: product, error: null }
+  if (!supabase) {
+    console.log("💾 No Supabase - mock save product:", product)
+    return { data: product, error: null }
+  }
+
+  try {
+    console.log("💾 Saving product to Supabase:", product)
+    const { data, error } = await supabase
+      .from("products")
+      .insert([
+        {
+          name: product.name,
+          qr_code: product.qrcode || null,
+          category_id: product.categoryId ? Number.parseInt(product.categoryId) : null,
+        },
+      ])
+      .select()
+
+    if (error) {
+      console.error("❌ Error saving product:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Product saved to Supabase")
+    const savedProduct: Product = {
+      id: data[0].id.toString(),
+      name: data[0].name,
+      qrcode: data[0].qr_code,
+      categoryId: data[0].category_id?.toString(),
+      created_at: data[0].created_at,
+    }
+    return { data: savedProduct, error: null }
+  } catch (error) {
+    console.error("❌ Error in saveProduct:", error)
+    return { data: null, error }
+  }
 }
 
 export const saveLocation = async (name: string) => {
-  console.log("💾 Saving location (localStorage mode):", name)
-  return { data: name, error: null }
+  if (!supabase) {
+    console.log("💾 No Supabase - mock save location:", name)
+    return { data: name, error: null }
+  }
+
+  try {
+    console.log("💾 Saving location to Supabase:", name)
+    const { data, error } = await supabase.from("locations").insert([{ name }]).select()
+
+    if (error) {
+      console.error("❌ Error saving location:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Location saved to Supabase")
+    return { data: name, error: null }
+  } catch (error) {
+    console.error("❌ Error in saveLocation:", error)
+    return { data: null, error }
+  }
 }
 
 export const savePurpose = async (name: string) => {
-  console.log("💾 Saving purpose (localStorage mode):", name)
-  return { data: name, error: null }
+  if (!supabase) {
+    console.log("💾 No Supabase - mock save purpose:", name)
+    return { data: name, error: null }
+  }
+
+  try {
+    console.log("💾 Saving purpose to Supabase:", name)
+    const { data, error } = await supabase.from("purposes").insert([{ name }]).select()
+
+    if (error) {
+      console.error("❌ Error saving purpose:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Purpose saved to Supabase")
+    return { data: name, error: null }
+  } catch (error) {
+    console.error("❌ Error in savePurpose:", error)
+    return { data: null, error }
+  }
 }
 
 export const saveCategory = async (category: { name: string }) => {
-  console.log("💾 Saving category (localStorage mode):", category)
-  const mockCategory: Category = { id: Date.now().toString(), name: category.name }
-  return { data: mockCategory, error: null }
+  if (!supabase) {
+    console.log("💾 No Supabase - mock save category:", category)
+    const mockCategory: Category = { id: Date.now().toString(), name: category.name }
+    return { data: mockCategory, error: null }
+  }
+
+  try {
+    console.log("💾 Saving category to Supabase:", category)
+    const { data, error } = await supabase
+      .from("categories")
+      .insert([{ name: category.name }])
+      .select()
+
+    if (error) {
+      console.error("❌ Error saving category:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Category saved to Supabase")
+    const savedCategory: Category = {
+      id: data[0].id.toString(),
+      name: data[0].name,
+    }
+    return { data: savedCategory, error: null }
+  } catch (error) {
+    console.error("❌ Error in saveCategory:", error)
+    return { data: null, error }
+  }
 }
 
 export const saveRegistration = async (registration: any) => {
-  console.log("💾 Saving registration (localStorage mode):", registration)
-  return { data: registration, error: null }
+  if (!supabase) {
+    console.log("💾 No Supabase - mock save registration:", registration)
+    return { data: registration, error: null }
+  }
+
+  try {
+    console.log("💾 Saving registration to Supabase:", registration)
+    const { data, error } = await supabase.from("registrations").insert([registration]).select()
+
+    if (error) {
+      console.error("❌ Error saving registration:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Registration saved to Supabase")
+    return { data: data[0], error: null }
+  } catch (error) {
+    console.error("❌ Error in saveRegistration:", error)
+    return { data: null, error }
+  }
 }
 
-// Delete functions - FORCE localStorage mode for now
-export const deleteUser = async (name: string) => {
-  console.log("🗑️ Deleting user (localStorage mode):", name)
-  return { data: null, error: null }
-}
-
-export const deleteProduct = async (id: string) => {
-  console.log("🗑️ Deleting product (localStorage mode):", id)
-  return { data: null, error: null }
-}
-
-export const deleteLocation = async (name: string) => {
-  console.log("🗑️ Deleting location (localStorage mode):", name)
-  return { data: null, error: null }
-}
-
-export const deletePurpose = async (name: string) => {
-  console.log("🗑️ Deleting purpose (localStorage mode):", name)
-  return { data: null, error: null }
-}
-
-export const deleteCategory = async (id: string) => {
-  console.log("🗑️ Deleting category (localStorage mode):", id)
-  return { data: null, error: null }
-}
-
-// Update functions - FORCE localStorage mode for now
+// SIMPLIFIED: Update functions
 export const updateProduct = async (id: string, updates: any) => {
-  console.log("🔄 Updating product (localStorage mode):", { id, updates })
-  return { data: { id, ...updates }, error: null }
+  if (!supabase) {
+    console.log("🔄 No Supabase - mock update product:", { id, updates })
+    return { data: { id, ...updates }, error: null }
+  }
+
+  try {
+    console.log("🔄 Updating product in Supabase:", { id, updates })
+    const { data, error } = await supabase.from("products").update(updates).eq("id", id).select()
+
+    if (error) {
+      console.error("❌ Error updating product:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Product updated in Supabase:", data)
+    return { data: data[0], error: null }
+  } catch (error) {
+    console.error("❌ Error in updateProduct:", error)
+    return { data: null, error }
+  }
 }
 
 export const updateUser = async (oldName: string, newName: string) => {
-  console.log("🔄 Updating user (localStorage mode):", { oldName, newName })
-  return { data: { name: newName }, error: null }
+  if (!supabase) {
+    console.log("🔄 No Supabase - mock update user:", { oldName, newName })
+    return { data: { name: newName }, error: null }
+  }
+
+  try {
+    console.log("🔄 Updating user in Supabase:", { oldName, newName })
+    const { data, error } = await supabase.from("users").update({ name: newName }).eq("name", oldName).select()
+
+    if (error) {
+      console.error("❌ Error updating user:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ User updated in Supabase")
+    return { data: { name: newName }, error: null }
+  } catch (error) {
+    console.error("❌ Error in updateUser:", error)
+    return { data: null, error }
+  }
 }
 
 export const updateCategory = async (id: string, updates: any) => {
-  console.log("🔄 Updating category (localStorage mode):", { id, updates })
-  return { data: { id, ...updates }, error: null }
+  if (!supabase) {
+    console.log("🔄 No Supabase - mock update category:", { id, updates })
+    return { data: { id, ...updates }, error: null }
+  }
+
+  try {
+    console.log("🔄 Updating category in Supabase:", { id, updates })
+    const { data, error } = await supabase.from("categories").update(updates).eq("id", id).select()
+
+    if (error) {
+      console.error("❌ Error updating category:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Category updated in Supabase:", data)
+    return { data: data[0], error: null }
+  } catch (error) {
+    console.error("❌ Error in updateCategory:", error)
+    return { data: null, error }
+  }
 }
 
 export const updateLocation = async (oldName: string, newName: string) => {
-  console.log("🔄 Updating location (localStorage mode):", { oldName, newName })
-  return { data: { name: newName }, error: null }
+  if (!supabase) {
+    console.log("🔄 No Supabase - mock update location:", { oldName, newName })
+    return { data: { name: newName }, error: null }
+  }
+
+  try {
+    console.log("🔄 Updating location in Supabase:", { oldName, newName })
+    const { data, error } = await supabase.from("locations").update({ name: newName }).eq("name", oldName).select()
+
+    if (error) {
+      console.error("❌ Error updating location:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Location updated in Supabase")
+    return { data: { name: newName }, error: null }
+  } catch (error) {
+    console.error("❌ Error in updateLocation:", error)
+    return { data: null, error }
+  }
 }
 
 export const updatePurpose = async (oldName: string, newName: string) => {
-  console.log("🔄 Updating purpose (localStorage mode):", { oldName, newName })
-  return { data: { name: newName }, error: null }
+  if (!supabase) {
+    console.log("🔄 No Supabase - mock update purpose:", { oldName, newName })
+    return { data: { name: newName }, error: null }
+  }
+
+  try {
+    console.log("🔄 Updating purpose in Supabase:", { oldName, newName })
+    const { data, error } = await supabase.from("purposes").update({ name: newName }).eq("name", oldName).select()
+
+    if (error) {
+      console.error("❌ Error updating purpose:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Purpose updated in Supabase")
+    return { data: { name: newName }, error: null }
+  } catch (error) {
+    console.error("❌ Error in updatePurpose:", error)
+    return { data: null, error }
+  }
 }
 
-// Subscription functions - DISABLED for now to avoid errors
+// SIMPLIFIED: Delete functions
+export const deleteUser = async (name: string) => {
+  if (!supabase) {
+    console.log("🗑️ No Supabase - mock delete user:", name)
+    return { data: null, error: null }
+  }
+
+  try {
+    console.log("🗑️ Deleting user from Supabase:", name)
+    const { error } = await supabase.from("users").delete().eq("name", name)
+
+    if (error) {
+      console.error("❌ Error deleting user:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ User deleted from Supabase")
+    return { data: null, error: null }
+  } catch (error) {
+    console.error("❌ Error in deleteUser:", error)
+    return { data: null, error }
+  }
+}
+
+export const deleteProduct = async (id: string) => {
+  if (!supabase) {
+    console.log("🗑️ No Supabase - mock delete product:", id)
+    return { data: null, error: null }
+  }
+
+  try {
+    console.log("🗑️ Deleting product from Supabase:", id)
+    const { error } = await supabase.from("products").delete().eq("id", id)
+
+    if (error) {
+      console.error("❌ Error deleting product:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Product deleted from Supabase")
+    return { data: null, error: null }
+  } catch (error) {
+    console.error("❌ Error in deleteProduct:", error)
+    return { data: null, error }
+  }
+}
+
+export const deleteLocation = async (name: string) => {
+  if (!supabase) {
+    console.log("🗑️ No Supabase - mock delete location:", name)
+    return { data: null, error: null }
+  }
+
+  try {
+    console.log("🗑️ Deleting location from Supabase:", name)
+    const { error } = await supabase.from("locations").delete().eq("name", name)
+
+    if (error) {
+      console.error("❌ Error deleting location:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Location deleted from Supabase")
+    return { data: null, error: null }
+  } catch (error) {
+    console.error("❌ Error in deleteLocation:", error)
+    return { data: null, error }
+  }
+}
+
+export const deletePurpose = async (name: string) => {
+  if (!supabase) {
+    console.log("🗑️ No Supabase - mock delete purpose:", name)
+    return { data: null, error: null }
+  }
+
+  try {
+    console.log("🗑️ Deleting purpose from Supabase:", name)
+    const { error } = await supabase.from("purposes").delete().eq("name", name)
+
+    if (error) {
+      console.error("❌ Error deleting purpose:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Purpose deleted from Supabase")
+    return { data: null, error: null }
+  } catch (error) {
+    console.error("❌ Error in deletePurpose:", error)
+    return { data: null, error }
+  }
+}
+
+export const deleteCategory = async (id: string) => {
+  if (!supabase) {
+    console.log("🗑️ No Supabase - mock delete category:", id)
+    return { data: null, error: null }
+  }
+
+  try {
+    console.log("🗑️ Deleting category from Supabase:", id)
+    const { error } = await supabase.from("categories").delete().eq("id", id)
+
+    if (error) {
+      console.error("❌ Error deleting category:", error)
+      return { data: null, error }
+    }
+
+    console.log("✅ Category deleted from Supabase")
+    return { data: null, error: null }
+  } catch (error) {
+    console.error("❌ Error in deleteCategory:", error)
+    return { data: null, error }
+  }
+}
+
+// SIMPLIFIED: Real-time subscriptions
 export const subscribeToUsers = (callback: (users: string[]) => void) => {
-  console.log("🔔 Users subscription disabled (localStorage mode)")
-  return null
+  if (!supabase) {
+    console.log("🔔 No Supabase - users subscription disabled")
+    return null
+  }
+
+  console.log("🔔 Setting up users subscription...")
+  const subscription = supabase
+    .channel("users_changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "users" }, async () => {
+      console.log("🔔 Users table changed - refetching...")
+      const result = await fetchUsers()
+      if (result.data) {
+        callback(result.data)
+      }
+    })
+    .subscribe()
+
+  return subscription
 }
 
 export const subscribeToProducts = (callback: (products: Product[]) => void) => {
-  console.log("🔔 Products subscription disabled (localStorage mode)")
-  return null
+  if (!supabase) {
+    console.log("🔔 No Supabase - products subscription disabled")
+    return null
+  }
+
+  console.log("🔔 Setting up products subscription...")
+  const subscription = supabase
+    .channel("products_changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "products" }, async () => {
+      console.log("🔔 Products table changed - refetching...")
+      const result = await fetchProducts()
+      if (result.data) {
+        callback(result.data)
+      }
+    })
+    .subscribe()
+
+  return subscription
 }
 
 export const subscribeToLocations = (callback: (locations: string[]) => void) => {
-  console.log("🔔 Locations subscription disabled (localStorage mode)")
-  return null
+  if (!supabase) {
+    console.log("🔔 No Supabase - locations subscription disabled")
+    return null
+  }
+
+  console.log("🔔 Setting up locations subscription...")
+  const subscription = supabase
+    .channel("locations_changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "locations" }, async () => {
+      console.log("🔔 Locations table changed - refetching...")
+      const result = await fetchLocations()
+      if (result.data) {
+        callback(result.data)
+      }
+    })
+    .subscribe()
+
+  return subscription
 }
 
 export const subscribeToPurposes = (callback: (purposes: string[]) => void) => {
-  console.log("🔔 Purposes subscription disabled (localStorage mode)")
-  return null
+  if (!supabase) {
+    console.log("🔔 No Supabase - purposes subscription disabled")
+    return null
+  }
+
+  console.log("🔔 Setting up purposes subscription...")
+  const subscription = supabase
+    .channel("purposes_changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "purposes" }, async () => {
+      console.log("🔔 Purposes table changed - refetching...")
+      const result = await fetchPurposes()
+      if (result.data) {
+        callback(result.data)
+      }
+    })
+    .subscribe()
+
+  return subscription
 }
 
 export const subscribeToCategories = (callback: (categories: Category[]) => void) => {
-  console.log("🔔 Categories subscription disabled (localStorage mode)")
-  return null
+  if (!supabase) {
+    console.log("🔔 No Supabase - categories subscription disabled")
+    return null
+  }
+
+  console.log("🔔 Setting up categories subscription...")
+  const subscription = supabase
+    .channel("categories_changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, async () => {
+      console.log("🔔 Categories table changed - refetching...")
+      const result = await fetchCategories()
+      if (result.data) {
+        callback(result.data)
+      }
+    })
+    .subscribe()
+
+  return subscription
 }
 
 export const subscribeToRegistrations = (callback: (registrations: Registration[]) => void) => {
-  console.log("🔔 Registrations subscription disabled (localStorage mode)")
-  return null
+  if (!supabase) {
+    console.log("🔔 No Supabase - registrations subscription disabled")
+    return null
+  }
+
+  console.log("🔔 Setting up registrations subscription...")
+  const subscription = supabase
+    .channel("registrations_changes")
+    .on("postgres_changes", { event: "*", schema: "public", table: "registrations" }, async () => {
+      console.log("🔔 Registrations table changed - refetching...")
+      const result = await fetchRegistrations()
+      if (result.data) {
+        callback(result.data)
+      }
+    })
+    .subscribe()
+
+  return subscription
 }
