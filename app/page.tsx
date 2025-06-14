@@ -852,6 +852,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
         setImportError("Fout bij opslaan categorie")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        // FORCE LOCAL STATE UPDATE - TOEGEVOEGD
+        console.log("🔄 Forcing local categories refresh...")
+        const refreshResult = await fetchCategories()
+        if (refreshResult.data) {
+          console.log("🔄 Updating local categories state...")
+          setCategories(refreshResult.data)
+        }
         setImportMessage("✅ Categorie toegevoegd!")
         setTimeout(() => setImportMessage(""), 2000)
       }
