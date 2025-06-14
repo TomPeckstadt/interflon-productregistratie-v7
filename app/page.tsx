@@ -1890,23 +1890,255 @@ export default function ProductRegistrationApp() {
             <Card className="shadow-sm">
               <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
                 <CardTitle className="flex items-center gap-2 text-xl">📊 Statistieken</CardTitle>
-                <CardDescription>Overzicht van alle registraties</CardDescription>
+                <CardDescription>Overzicht van product registraties</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h3 className="font-semibold text-blue-800">Totaal Registraties</h3>
-                    <p className="text-2xl font-bold text-blue-900">{registrations.length}</p>
+                {/* Main Statistics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                    <h3 className="font-semibold text-blue-800 text-lg">Totaal Registraties</h3>
+                    <p className="text-3xl font-bold text-blue-900">{registrations.length}</p>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <h3 className="font-semibold text-green-800">Actieve Gebruikers</h3>
-                    <p className="text-2xl font-bold text-green-900">{users.length}</p>
+                  <div className="bg-green-50 p-6 rounded-lg border border-green-200">
+                    <h3 className="font-semibold text-green-800 text-lg">Unieke Gebruikers</h3>
+                    <p className="text-3xl font-bold text-green-900">
+                      {new Set(registrations.map((r) => r.user)).size}
+                    </p>
                   </div>
-                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                    <h3 className="font-semibold text-purple-800">Beschikbare Producten</h3>
-                    <p className="text-2xl font-bold text-purple-900">{products.length}</p>
+                  <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
+                    <h3 className="font-semibold text-purple-800 text-lg">Unieke Producten</h3>
+                    <p className="text-3xl font-bold text-purple-900">
+                      {new Set(registrations.map((r) => r.product)).size}
+                    </p>
                   </div>
                 </div>
+
+                {/* Recent Activity */}
+                {registrations.length > 0 && (
+                  <div className="mb-8">
+                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mb-4">
+                      <h3 className="font-semibold text-amber-800 text-lg mb-4">Recente Activiteit</h3>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Datum</TableHead>
+                              <TableHead>Gebruiker</TableHead>
+                              <TableHead>Product</TableHead>
+                              <TableHead>Locatie</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {registrations
+                              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                              .slice(0, 5)
+                              .map((registration) => {
+                                const registrationDate = new Date(registration.timestamp)
+                                return (
+                                  <TableRow key={registration.id}>
+                                    <TableCell>
+                                      {registrationDate.toLocaleDateString("nl-NL")}{" "}
+                                      {registrationDate.toLocaleTimeString("nl-NL", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </TableCell>
+                                    <TableCell>{registration.user}</TableCell>
+                                    <TableCell>{registration.product}</TableCell>
+                                    <TableCell>{registration.location}</TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Top 5 Statistics */}
+                {registrations.length > 0 && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+                    {/* Top 5 Users */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="font-semibold text-gray-800 text-lg mb-4">Top 5 Gebruikers</h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm font-medium text-gray-600 border-b pb-2">
+                          <span>Gebruiker</span>
+                          <span>Aantal</span>
+                        </div>
+                        {Object.entries(
+                          registrations.reduce(
+                            (acc, reg) => {
+                              acc[reg.user] = (acc[reg.user] || 0) + 1
+                              return acc
+                            },
+                            {} as Record<string, number>,
+                          ),
+                        )
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 5)
+                          .map(([user, count]) => (
+                            <div key={user} className="flex justify-between text-sm">
+                              <span className="truncate">{user}</span>
+                              <span className="font-medium">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Top 5 Products */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="font-semibold text-gray-800 text-lg mb-4">Top 5 Producten</h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm font-medium text-gray-600 border-b pb-2">
+                          <span>Product</span>
+                          <span>Aantal</span>
+                        </div>
+                        {Object.entries(
+                          registrations.reduce(
+                            (acc, reg) => {
+                              acc[reg.product] = (acc[reg.product] || 0) + 1
+                              return acc
+                            },
+                            {} as Record<string, number>,
+                          ),
+                        )
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 5)
+                          .map(([product, count]) => (
+                            <div key={product} className="flex justify-between text-sm">
+                              <span className="truncate">{product}</span>
+                              <span className="font-medium">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Top 5 Locations */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="font-semibold text-gray-800 text-lg mb-4">Top 5 Locaties</h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm font-medium text-gray-600 border-b pb-2">
+                          <span>Locatie</span>
+                          <span>Aantal</span>
+                        </div>
+                        {Object.entries(
+                          registrations.reduce(
+                            (acc, reg) => {
+                              acc[reg.location] = (acc[reg.location] || 0) + 1
+                              return acc
+                            },
+                            {} as Record<string, number>,
+                          ),
+                        )
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 5)
+                          .map(([location, count]) => (
+                            <div key={location} className="flex justify-between text-sm">
+                              <span className="truncate">{location}</span>
+                              <span className="font-medium">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Product Distribution Chart */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                      <h3 className="font-semibold text-gray-800 text-lg mb-4">Top 5 Producten</h3>
+                      <div className="space-y-4">
+                        {/* Simple visual representation */}
+                        <div className="space-y-2">
+                          {Object.entries(
+                            registrations.reduce(
+                              (acc, reg) => {
+                                acc[reg.product] = (acc[reg.product] || 0) + 1
+                                return acc
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          )
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([product, count], index) => {
+                              const colors = [
+                                "bg-red-200",
+                                "bg-green-200",
+                                "bg-blue-200",
+                                "bg-yellow-200",
+                                "bg-purple-200",
+                              ]
+                              const maxCount = Math.max(
+                                ...Object.values(
+                                  registrations.reduce(
+                                    (acc, reg) => {
+                                      acc[reg.product] = (acc[reg.product] || 0) + 1
+                                      return acc
+                                    },
+                                    {} as Record<string, number>,
+                                  ),
+                                ),
+                              )
+                              const percentage = (count / maxCount) * 100
+
+                              return (
+                                <div key={product} className="space-y-1">
+                                  <div className="flex justify-between text-xs">
+                                    <span className="truncate">{product}</span>
+                                    <span className="font-medium">{count}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div
+                                      className={`h-2 rounded-full ${colors[index]}`}
+                                      style={{ width: `${percentage}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                        </div>
+
+                        {/* Simple pie chart representation */}
+                        <div className="flex justify-center mt-4">
+                          <div className="w-24 h-24 rounded-full border-8 border-gray-200 relative overflow-hidden">
+                            {Object.entries(
+                              registrations.reduce(
+                                (acc, reg) => {
+                                  acc[reg.product] = (acc[reg.product] || 0) + 1
+                                  return acc
+                                },
+                                {} as Record<string, number>,
+                              ),
+                            )
+                              .sort(([, a], [, b]) => b - a)
+                              .slice(0, 4)
+                              .map(([product, count], index) => {
+                                const colors = ["bg-red-300", "bg-green-300", "bg-blue-300", "bg-yellow-300"]
+                                return (
+                                  <div
+                                    key={product}
+                                    className={`absolute inset-0 ${colors[index]} opacity-70`}
+                                    style={{
+                                      clipPath: `polygon(50% 50%, 50% 0%, ${50 + index * 25}% 0%, ${50 + (index + 1) * 25}% 0%)`,
+                                    }}
+                                  ></div>
+                                )
+                              })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* No data message */}
+                {registrations.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 text-6xl mb-4">📊</div>
+                    <h3 className="text-lg font-medium text-gray-600 mb-2">Nog geen registraties</h3>
+                    <p className="text-gray-500">Registreer je eerste product om statistieken te zien</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1945,6 +2177,7 @@ export default function ProductRegistrationApp() {
         </div>
       )}
 
+      {/* Edit Product Dialog */}
       {/* Edit Product Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
