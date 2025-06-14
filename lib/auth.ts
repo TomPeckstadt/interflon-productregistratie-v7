@@ -1,10 +1,20 @@
 import { createClient } from "@supabase/supabase-js"
 
-// Supabase client voor authenticatie
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+console.log("🔧 Auth Configuration Check:")
+console.log("URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
+console.log("Key:", supabaseAnonKey ? "✅ Set" : "❌ Missing")
+
+// Check if Supabase is configured
+export const isSupabaseConfigured = () => {
+  return !!(supabaseUrl && supabaseAnonKey && supabaseUrl.includes("supabase"))
+}
+
+// Create Supabase client only if configured
+export const supabase = isSupabaseConfigured() ? createClient(supabaseUrl!, supabaseAnonKey!) : null
 
 // Types
 export interface User {
@@ -18,6 +28,24 @@ export interface User {
  * Signs in with email and password
  */
 export async function signIn(email: string, password: string) {
+  if (!supabase) {
+    console.log("⚠️ Supabase not configured - using mock authentication")
+    // Mock authentication for development
+    if (email === "admin@example.com" && password === "admin123") {
+      return {
+        data: {
+          user: {
+            id: "mock-user-1",
+            email: "admin@example.com",
+            user_metadata: { name: "Admin User" },
+          },
+        },
+        error: null,
+      }
+    }
+    return { data: null, error: { message: "Invalid credentials" } }
+  }
+
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -34,6 +62,11 @@ export async function signIn(email: string, password: string) {
  * Signs out the current user
  */
 export async function signOut() {
+  if (!supabase) {
+    console.log("⚠️ Supabase not configured - mock sign out")
+    return { error: null }
+  }
+
   try {
     const { error } = await supabase.auth.signOut()
     return { error }
@@ -47,6 +80,11 @@ export async function signOut() {
  * Gets the current authenticated user
  */
 export async function getCurrentUser() {
+  if (!supabase) {
+    console.log("⚠️ Supabase not configured - no current user")
+    return null
+  }
+
   try {
     const {
       data: { session },
@@ -74,6 +112,11 @@ export async function getCurrentUser() {
  * Sets up a subscription to auth state changes
  */
 export function onAuthStateChange(callback: (user: any) => void) {
+  if (!supabase) {
+    console.log("⚠️ Supabase not configured - no auth state changes")
+    return { data: { subscription: null } }
+  }
+
   return supabase.auth.onAuthStateChange((event, session) => {
     if (session?.user) {
       const user = {
@@ -93,6 +136,11 @@ export function onAuthStateChange(callback: (user: any) => void) {
  * Signs up a new user
  */
 export async function signUpWithPassword(email: string, password: string, name?: string) {
+  if (!supabase) {
+    console.log("⚠️ Supabase not configured - mock sign up")
+    return { user: null, error: { message: "Supabase not configured" } }
+  }
+
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
