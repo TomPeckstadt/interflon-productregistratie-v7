@@ -43,6 +43,8 @@ import {
   updateUser,
   updateLocation,
   updatePurpose,
+  updateProduct,
+  updateCategory,
   setProductEditInProgress,
   setUserEditInProgress,
   setCategoryEditInProgress,
@@ -542,6 +544,264 @@ export default function ProductRegistrationApp() {
     setOriginalPurpose(purpose)
     setEditingPurpose(purpose)
     setShowEditPurposeDialog(true)
+  }
+
+  // FIXED: Save handlers for edit dialogs
+  const handleSaveProduct = async () => {
+    if (!editingProduct || !originalProduct) return
+
+    console.log("💾 Saving product changes:", {
+      original: originalProduct,
+      edited: editingProduct,
+    })
+
+    // Check if there are actual changes
+    const hasChanges =
+      editingProduct.name !== originalProduct.name ||
+      editingProduct.qrcode !== originalProduct.qrcode ||
+      editingProduct.categoryId !== originalProduct.categoryId
+
+    if (!hasChanges) {
+      console.log("⚠️ No changes detected")
+      setShowEditDialog(false)
+      return
+    }
+
+    if (isSupabaseConnected) {
+      console.log("🔄 Pausing product subscription...")
+      setProductEditInProgress(true)
+
+      try {
+        // Prepare update data for Supabase
+        const updateData = {
+          name: editingProduct.name,
+          qr_code: editingProduct.qrcode || null,
+          category_id: editingProduct.categoryId ? Number.parseInt(editingProduct.categoryId) : null,
+        }
+
+        console.log("📤 Updating product in Supabase:", {
+          id: originalProduct.id,
+          data: updateData,
+        })
+
+        const result = await updateProduct(originalProduct.id, updateData)
+
+        if (result.error) {
+          console.error("❌ Error updating product:", result.error)
+          setImportError("Fout bij bijwerken product")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Product updated in Supabase")
+
+          // Update local state immediately
+          setProducts((prev) => prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p)))
+
+          setImportMessage("✅ Product bijgewerkt!")
+          setTimeout(() => setImportMessage(""), 2000)
+          setShowEditDialog(false)
+        }
+      } catch (error) {
+        console.error("❌ Error in product update:", error)
+        setImportError("Fout bij bijwerken product")
+        setTimeout(() => setImportError(""), 3000)
+      }
+
+      // Re-enable subscription after 3 seconds
+      setTimeout(() => {
+        console.log("🔄 Re-enabling product subscription...")
+        setProductEditInProgress(false)
+      }, 3000)
+    } else {
+      // Update in localStorage
+      setProducts((prev) => prev.map((p) => (p.id === originalProduct.id ? editingProduct : p)))
+      setImportMessage("✅ Product bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      setShowEditDialog(false)
+    }
+  }
+
+  const handleSaveUser = async () => {
+    if (!editingUser.trim() || !originalUser) return
+
+    const hasChanges = editingUser.trim() !== originalUser
+    if (!hasChanges) {
+      setShowEditUserDialog(false)
+      return
+    }
+
+    console.log("💾 Saving user changes:", { original: originalUser, edited: editingUser.trim() })
+
+    if (isSupabaseConnected) {
+      console.log("🔄 Pausing user subscription...")
+      setUserEditInProgress(true)
+
+      try {
+        const result = await updateUser(originalUser, editingUser.trim())
+        if (result.error) {
+          console.error("❌ Error updating user:", result.error)
+          setImportError("Fout bij bijwerken gebruiker")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ User updated in Supabase")
+          setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
+          setImportMessage("✅ Gebruiker bijgewerkt!")
+          setTimeout(() => setImportMessage(""), 2000)
+          setShowEditUserDialog(false)
+        }
+      } catch (error) {
+        console.error("❌ Error in user update:", error)
+        setImportError("Fout bij bijwerken gebruiker")
+        setTimeout(() => setImportError(""), 3000)
+      }
+
+      setTimeout(() => {
+        console.log("🔄 Re-enabling user subscription...")
+        setUserEditInProgress(false)
+      }, 3000)
+    } else {
+      setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
+      setImportMessage("✅ Gebruiker bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      setShowEditUserDialog(false)
+    }
+  }
+
+  const handleSaveCategory = async () => {
+    if (!editingCategory || !originalCategory) return
+
+    const hasChanges = editingCategory.name.trim() !== originalCategory.name
+    if (!hasChanges) {
+      setShowEditCategoryDialog(false)
+      return
+    }
+
+    console.log("💾 Saving category changes:", { original: originalCategory, edited: editingCategory })
+
+    if (isSupabaseConnected) {
+      console.log("🔄 Pausing category subscription...")
+      setCategoryEditInProgress(true)
+
+      try {
+        const result = await updateCategory(originalCategory.id, { name: editingCategory.name.trim() })
+        if (result.error) {
+          console.error("❌ Error updating category:", result.error)
+          setImportError("Fout bij bijwerken categorie")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Category updated in Supabase")
+          setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? { ...editingCategory } : c)))
+          setImportMessage("✅ Categorie bijgewerkt!")
+          setTimeout(() => setImportMessage(""), 2000)
+          setShowEditCategoryDialog(false)
+        }
+      } catch (error) {
+        console.error("❌ Error in category update:", error)
+        setImportError("Fout bij bijwerken categorie")
+        setTimeout(() => setImportError(""), 3000)
+      }
+
+      setTimeout(() => {
+        console.log("🔄 Re-enabling category subscription...")
+        setCategoryEditInProgress(false)
+      }, 3000)
+    } else {
+      setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? editingCategory : c)))
+      setImportMessage("✅ Categorie bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      setShowEditCategoryDialog(false)
+    }
+  }
+
+  const handleSaveLocation = async () => {
+    if (!editingLocation.trim() || !originalLocation) return
+
+    const hasChanges = editingLocation.trim() !== originalLocation
+    if (!hasChanges) {
+      setShowEditLocationDialog(false)
+      return
+    }
+
+    console.log("💾 Saving location changes:", { original: originalLocation, edited: editingLocation.trim() })
+
+    if (isSupabaseConnected) {
+      console.log("🔄 Pausing location subscription...")
+      setLocationEditInProgress(true)
+
+      try {
+        const result = await updateLocation(originalLocation, editingLocation.trim())
+        if (result.error) {
+          console.error("❌ Error updating location:", result.error)
+          setImportError("Fout bij bijwerken locatie")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Location updated in Supabase")
+          setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
+          setImportMessage("✅ Locatie bijgewerkt!")
+          setTimeout(() => setImportMessage(""), 2000)
+          setShowEditLocationDialog(false)
+        }
+      } catch (error) {
+        console.error("❌ Error in location update:", error)
+        setImportError("Fout bij bijwerken locatie")
+        setTimeout(() => setImportError(""), 3000)
+      }
+
+      setTimeout(() => {
+        console.log("🔄 Re-enabling location subscription...")
+        setLocationEditInProgress(false)
+      }, 3000)
+    } else {
+      setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
+      setImportMessage("✅ Locatie bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      setShowEditLocationDialog(false)
+    }
+  }
+
+  const handleSavePurpose = async () => {
+    if (!editingPurpose.trim() || !originalPurpose) return
+
+    const hasChanges = editingPurpose.trim() !== originalPurpose
+    if (!hasChanges) {
+      setShowEditPurposeDialog(false)
+      return
+    }
+
+    console.log("💾 Saving purpose changes:", { original: originalPurpose, edited: editingPurpose.trim() })
+
+    if (isSupabaseConnected) {
+      console.log("🔄 Pausing purpose subscription...")
+      setPurposeEditInProgress(true)
+
+      try {
+        const result = await updatePurpose(originalPurpose, editingPurpose.trim())
+        if (result.error) {
+          console.error("❌ Error updating purpose:", result.error)
+          setImportError("Fout bij bijwerken doel")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Purpose updated in Supabase")
+          setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
+          setImportMessage("✅ Doel bijgewerkt!")
+          setTimeout(() => setImportMessage(""), 2000)
+          setShowEditPurposeDialog(false)
+        }
+      } catch (error) {
+        console.error("❌ Error in purpose update:", error)
+        setImportError("Fout bij bijwerken doel")
+        setTimeout(() => setImportError(""), 3000)
+      }
+
+      setTimeout(() => {
+        console.log("🔄 Re-enabling purpose subscription...")
+        setPurposeEditInProgress(false)
+      }, 3000)
+    } else {
+      setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
+      setImportMessage("✅ Doel bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      setShowEditPurposeDialog(false)
+    }
   }
 
   // Add functions
@@ -1601,85 +1861,7 @@ export default function ProductRegistrationApp() {
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button
-                  onClick={async () => {
-                    if (!editingProduct || !originalProduct) return
-
-                    console.log("💾 Saving product changes:", {
-                      original: originalProduct,
-                      edited: editingProduct,
-                    })
-
-                    // FIXED: Use original product for comparison
-                    const hasChanges =
-                      editingProduct.name !== originalProduct.name ||
-                      editingProduct.qrcode !== originalProduct.qrcode ||
-                      editingProduct.categoryId !== originalProduct.categoryId
-
-                    if (!hasChanges) {
-                      console.log("⚠️ No changes detected")
-                      setShowEditDialog(false)
-                      return
-                    }
-
-                    if (isSupabaseConnected) {
-                      console.log("🔄 Pausing product subscription...")
-                      setProductEditInProgress(true)
-
-                      try {
-                        // Update in Supabase using ORIGINAL product ID
-                        const updateData = {
-                          name: editingProduct.name,
-                          qr_code: editingProduct.qrcode || null,
-                          category_id: editingProduct.categoryId || null,
-                        }
-
-                        console.log("📤 Updating product in Supabase:", {
-                          id: originalProduct.id,
-                          data: updateData,
-                        })
-
-                        // Import the updateProduct function
-                        const { updateProduct } = await import("@/lib/supabase")
-                        const result = await updateProduct(originalProduct.id, updateData)
-
-                        if (result.error) {
-                          console.error("❌ Error updating product:", result.error)
-                          setImportError("Fout bij bijwerken product")
-                          setTimeout(() => setImportError(""), 3000)
-                        } else {
-                          console.log("✅ Product updated in Supabase")
-
-                          // Update local state immediately
-                          setProducts((prev) =>
-                            prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p)),
-                          )
-
-                          setImportMessage("✅ Product bijgewerkt!")
-                          setTimeout(() => setImportMessage(""), 2000)
-                          setShowEditDialog(false)
-                        }
-                      } catch (error) {
-                        console.error("❌ Error in product update:", error)
-                        setImportError("Fout bij bijwerken product")
-                        setTimeout(() => setImportError(""), 3000)
-                      }
-
-                      // Re-enable subscription after 3 seconds
-                      setTimeout(() => {
-                        console.log("🔄 Re-enabling product subscription...")
-                        setProductEditInProgress(false)
-                      }, 3000)
-                    } else {
-                      // Update in localStorage
-                      setProducts((prev) => prev.map((p) => (p.id === originalProduct.id ? editingProduct : p)))
-                      setImportMessage("✅ Product bijgewerkt!")
-                      setTimeout(() => setImportMessage(""), 2000)
-                      setShowEditDialog(false)
-                    }
-                  }}
-                  className="flex-1"
-                >
+                <Button onClick={handleSaveProduct} className="flex-1">
                   Opslaan
                 </Button>
                 <Button
@@ -1712,52 +1894,7 @@ export default function ProductRegistrationApp() {
               <Input value={editingUser} onChange={(e) => setEditingUser(e.target.value)} />
             </div>
             <div className="flex gap-2">
-              <Button
-                onClick={async () => {
-                  if (!editingUser.trim() || !originalUser) return
-
-                  const hasChanges = editingUser.trim() !== originalUser
-                  if (!hasChanges) {
-                    setShowEditUserDialog(false)
-                    return
-                  }
-
-                  if (isSupabaseConnected) {
-                    console.log("🔄 Pausing user subscription...")
-                    setUserEditInProgress(true)
-
-                    try {
-                      const result = await updateUser(originalUser, editingUser.trim())
-                      if (result.error) {
-                        console.error("❌ Error updating user:", result.error)
-                        setImportError("Fout bij bijwerken gebruiker")
-                        setTimeout(() => setImportError(""), 3000)
-                      } else {
-                        console.log("✅ User updated in Supabase")
-                        setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
-                        setImportMessage("✅ Gebruiker bijgewerkt!")
-                        setTimeout(() => setImportMessage(""), 2000)
-                        setShowEditUserDialog(false)
-                      }
-                    } catch (error) {
-                      console.error("❌ Error in user update:", error)
-                      setImportError("Fout bij bijwerken gebruiker")
-                      setTimeout(() => setImportError(""), 3000)
-                    }
-
-                    setTimeout(() => {
-                      console.log("🔄 Re-enabling user subscription...")
-                      setUserEditInProgress(false)
-                    }, 3000)
-                  } else {
-                    setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
-                    setImportMessage("✅ Gebruiker bijgewerkt!")
-                    setTimeout(() => setImportMessage(""), 2000)
-                    setShowEditUserDialog(false)
-                  }
-                }}
-                className="flex-1"
-              >
+              <Button onClick={handleSaveUser} className="flex-1">
                 Opslaan
               </Button>
               <Button
@@ -1793,55 +1930,7 @@ export default function ProductRegistrationApp() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button
-                  onClick={async () => {
-                    if (!editingCategory || !originalCategory) return
-
-                    const hasChanges = editingCategory.name.trim() !== originalCategory.name
-                    if (!hasChanges) {
-                      setShowEditCategoryDialog(false)
-                      return
-                    }
-
-                    if (isSupabaseConnected) {
-                      console.log("🔄 Pausing category subscription...")
-                      setCategoryEditInProgress(true)
-
-                      try {
-                        const { updateCategory } = await import("@/lib/supabase")
-                        const result = await updateCategory(originalCategory.id, { name: editingCategory.name.trim() })
-                        if (result.error) {
-                          console.error("❌ Error updating category:", result.error)
-                          setImportError("Fout bij bijwerken categorie")
-                          setTimeout(() => setImportError(""), 3000)
-                        } else {
-                          console.log("✅ Category updated in Supabase")
-                          setCategories((prev) =>
-                            prev.map((c) => (c.id === originalCategory.id ? { ...editingCategory } : c)),
-                          )
-                          setImportMessage("✅ Categorie bijgewerkt!")
-                          setTimeout(() => setImportMessage(""), 2000)
-                          setShowEditCategoryDialog(false)
-                        }
-                      } catch (error) {
-                        console.error("❌ Error in category update:", error)
-                        setImportError("Fout bij bijwerken categorie")
-                        setTimeout(() => setImportError(""), 3000)
-                      }
-
-                      setTimeout(() => {
-                        console.log("🔄 Re-enabling category subscription...")
-                        setCategoryEditInProgress(false)
-                      }, 3000)
-                    } else {
-                      setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? editingCategory : c)))
-                      setImportMessage("✅ Categorie bijgewerkt!")
-                      setTimeout(() => setImportMessage(""), 2000)
-                      setShowEditCategoryDialog(false)
-                    }
-                  }}
-                  className="flex-1"
-                >
+                <Button onClick={handleSaveCategory} className="flex-1">
                   Opslaan
                 </Button>
                 <Button
@@ -1874,52 +1963,7 @@ export default function ProductRegistrationApp() {
               <Input value={editingLocation} onChange={(e) => setEditingLocation(e.target.value)} />
             </div>
             <div className="flex gap-2">
-              <Button
-                onClick={async () => {
-                  if (!editingLocation.trim() || !originalLocation) return
-
-                  const hasChanges = editingLocation.trim() !== originalLocation
-                  if (!hasChanges) {
-                    setShowEditLocationDialog(false)
-                    return
-                  }
-
-                  if (isSupabaseConnected) {
-                    console.log("🔄 Pausing location subscription...")
-                    setLocationEditInProgress(true)
-
-                    try {
-                      const result = await updateLocation(originalLocation, editingLocation.trim())
-                      if (result.error) {
-                        console.error("❌ Error updating location:", result.error)
-                        setImportError("Fout bij bijwerken locatie")
-                        setTimeout(() => setImportError(""), 3000)
-                      } else {
-                        console.log("✅ Location updated in Supabase")
-                        setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
-                        setImportMessage("✅ Locatie bijgewerkt!")
-                        setTimeout(() => setImportMessage(""), 2000)
-                        setShowEditLocationDialog(false)
-                      }
-                    } catch (error) {
-                      console.error("❌ Error in location update:", error)
-                      setImportError("Fout bij bijwerken locatie")
-                      setTimeout(() => setImportError(""), 3000)
-                    }
-
-                    setTimeout(() => {
-                      console.log("🔄 Re-enabling location subscription...")
-                      setLocationEditInProgress(false)
-                    }, 3000)
-                  } else {
-                    setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
-                    setImportMessage("✅ Locatie bijgewerkt!")
-                    setTimeout(() => setImportMessage(""), 2000)
-                    setShowEditLocationDialog(false)
-                  }
-                }}
-                className="flex-1"
-              >
+              <Button onClick={handleSaveLocation} className="flex-1">
                 Opslaan
               </Button>
               <Button
@@ -1951,52 +1995,7 @@ export default function ProductRegistrationApp() {
               <Input value={editingPurpose} onChange={(e) => setEditingPurpose(e.target.value)} />
             </div>
             <div className="flex gap-2">
-              <Button
-                onClick={async () => {
-                  if (!editingPurpose.trim() || !originalPurpose) return
-
-                  const hasChanges = editingPurpose.trim() !== originalPurpose
-                  if (!hasChanges) {
-                    setShowEditPurposeDialog(false)
-                    return
-                  }
-
-                  if (isSupabaseConnected) {
-                    console.log("🔄 Pausing purpose subscription...")
-                    setPurposeEditInProgress(true)
-
-                    try {
-                      const result = await updatePurpose(originalPurpose, editingPurpose.trim())
-                      if (result.error) {
-                        console.error("❌ Error updating purpose:", result.error)
-                        setImportError("Fout bij bijwerken doel")
-                        setTimeout(() => setImportError(""), 3000)
-                      } else {
-                        console.log("✅ Purpose updated in Supabase")
-                        setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
-                        setImportMessage("✅ Doel bijgewerkt!")
-                        setTimeout(() => setImportMessage(""), 2000)
-                        setShowEditPurposeDialog(false)
-                      }
-                    } catch (error) {
-                      console.error("❌ Error in purpose update:", error)
-                      setImportError("Fout bij bijwerken doel")
-                      setTimeout(() => setImportError(""), 3000)
-                    }
-
-                    setTimeout(() => {
-                      console.log("🔄 Re-enabling purpose subscription...")
-                      setPurposeEditInProgress(false)
-                    }, 3000)
-                  } else {
-                    setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
-                    setImportMessage("✅ Doel bijgewerkt!")
-                    setTimeout(() => setImportMessage(""), 2000)
-                    setShowEditPurposeDialog(false)
-                  }
-                }}
-                className="flex-1"
-              >
+              <Button onClick={handleSavePurpose} className="flex-1">
                 Opslaan
               </Button>
               <Button
