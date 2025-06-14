@@ -894,14 +894,6 @@ export function subscribeToUsers(callback: (users: string[]) => void) {
   }
 }
 
-// Global flag to temporarily disable product subscription during edits
-let isProductEditInProgress = false
-
-export function setProductEditInProgress(inProgress: boolean) {
-  console.log(`🔄 Product edit in progress: ${inProgress}`)
-  isProductEditInProgress = inProgress
-}
-
 export function subscribeToProducts(callback: (products: Product[]) => void) {
   debugLog("Setting up products subscription")
 
@@ -918,18 +910,16 @@ export function subscribeToProducts(callback: (products: Product[]) => void) {
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, async (payload) => {
         console.log("📦 Products change detected:", payload)
 
-        if (isProductEditInProgress) {
-          console.log("🚫 Product edit in progress, skipping subscription update")
-          return
-        }
+        // Add a small delay to allow local state to update first
+        setTimeout(async () => {
+          console.log("🔄 Fetching updated products due to subscription (with delay)")
+          const { data, error } = await fetchProducts()
 
-        console.log("🔄 Fetching updated products due to subscription")
-        const { data, error } = await fetchProducts()
-
-        if (!error && data) {
-          console.log("📦 Calling callback with updated products:", data.length)
-          callback(data)
-        }
+          if (!error && data) {
+            console.log("📦 Calling callback with updated products:", data.length)
+            callback(data)
+          }
+        }, 500) // 500ms delay
       })
       .subscribe((status) => {
         debugLog(`Products subscription status: ${status}`)
