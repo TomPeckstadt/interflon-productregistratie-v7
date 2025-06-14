@@ -5,6 +5,39 @@ function debugLog(message: string, data?: any) {
   console.log(`[DEBUG ${new Date().toISOString()}] ${message}`, data || "")
 }
 
+// Global flags to pause subscriptions during edits
+let isProductEditInProgress = false
+let isUserEditInProgress = false
+let isCategoryEditInProgress = false
+let isLocationEditInProgress = false
+let isPurposeEditInProgress = false
+
+// Functions to control edit flags
+export const setProductEditInProgress = (inProgress: boolean) => {
+  console.log(`🔄 Product edit in progress: ${inProgress}`)
+  isProductEditInProgress = inProgress
+}
+
+export const setUserEditInProgress = (inProgress: boolean) => {
+  console.log(`🔄 User edit in progress: ${inProgress}`)
+  isUserEditInProgress = inProgress
+}
+
+export const setCategoryEditInProgress = (inProgress: boolean) => {
+  console.log(`🔄 Category edit in progress: ${inProgress}`)
+  isCategoryEditInProgress = inProgress
+}
+
+export const setLocationEditInProgress = (inProgress: boolean) => {
+  console.log(`🔄 Location edit in progress: ${inProgress}`)
+  isLocationEditInProgress = inProgress
+}
+
+export const setPurposeEditInProgress = (inProgress: boolean) => {
+  console.log(`🔄 Purpose edit in progress: ${inProgress}`)
+  isPurposeEditInProgress = inProgress
+}
+
 // Supabase client voor client-side gebruik (singleton pattern)
 let supabaseClient: ReturnType<typeof createClient> | null = null
 let isSupabaseAvailable = false
@@ -251,9 +284,15 @@ export async function fetchProducts() {
 
 export async function saveProduct(product: Product) {
   try {
+    // Set edit flag to pause subscription
+    setProductEditInProgress(true)
+
     if (!isSupabaseConfigured()) {
       console.log("💾 Supabase niet beschikbaar - simuleer opslaan product")
       const newProduct = { ...product, id: Date.now().toString() }
+
+      // Reset flag after delay
+      setTimeout(() => setProductEditInProgress(false), 2000)
       return { data: newProduct, error: null }
     }
 
@@ -285,6 +324,7 @@ export async function saveProduct(product: Product) {
 
       if (error) {
         console.error("❌ Error updating product:", error)
+        setProductEditInProgress(false)
         return { data: product, error: error }
       }
 
@@ -302,12 +342,20 @@ export async function saveProduct(product: Product) {
         }
 
         console.log("✅ Returning mapped updated product:", mappedResult)
+
+        // Reset flag after delay to allow database to settle
+        setTimeout(() => {
+          console.log("🔄 Re-enabling product subscription after edit")
+          setProductEditInProgress(false)
+        }, 3000)
+
         return {
           data: mappedResult,
           error: null,
         }
       }
 
+      setProductEditInProgress(false)
       return { data: product, error: null }
     } else {
       // Insert new product
@@ -317,6 +365,7 @@ export async function saveProduct(product: Product) {
       if (error) {
         console.error("❌ Error saving product:", error)
         const newProduct = { ...product, id: Date.now().toString() }
+        setProductEditInProgress(false)
         return { data: newProduct, error: error }
       }
 
@@ -334,17 +383,23 @@ export async function saveProduct(product: Product) {
         }
 
         console.log("✅ Returning mapped new product:", mappedResult)
+
+        // Reset flag after delay
+        setTimeout(() => setProductEditInProgress(false), 2000)
+
         return {
           data: mappedResult,
           error: null,
         }
       }
 
+      setProductEditInProgress(false)
       return { data: data?.[0] || null, error: null }
     }
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan product - simuleer lokaal:", error)
     const newProduct = { ...product, id: Date.now().toString() }
+    setProductEditInProgress(false)
     return { data: newProduct, error: error }
   }
 }
@@ -434,8 +489,12 @@ export async function saveUser(name: string) {
 export async function updateUser(oldName: string, newName: string) {
   console.log("🔄 updateUser aangeroepen:", { oldName, newName })
 
+  // Set edit flag to pause subscription
+  setUserEditInProgress(true)
+
   if (!isSupabaseConfigured()) {
     console.log("💾 Supabase niet beschikbaar - simuleer bijwerken gebruiker")
+    setTimeout(() => setUserEditInProgress(false), 2000)
     return { data: { name: newName }, error: null }
   }
 
@@ -446,13 +505,22 @@ export async function updateUser(oldName: string, newName: string) {
 
     if (error && error.code !== "MOCK_MODE") {
       console.error("❌ Database error bij bijwerken gebruiker:", error)
+      setUserEditInProgress(false)
       return { data: { name: newName }, error: null }
     }
 
     console.log("✅ Gebruiker succesvol bijgewerkt")
+
+    // Reset flag after delay
+    setTimeout(() => {
+      console.log("🔄 Re-enabling user subscription after edit")
+      setUserEditInProgress(false)
+    }, 3000)
+
     return { data: data?.[0] || { name: newName }, error: null }
   } catch (error) {
     console.error("❌ Onverwachte fout bij bijwerken gebruiker:", error)
+    setUserEditInProgress(false)
     return { data: { name: newName }, error: null }
   }
 }
@@ -532,8 +600,12 @@ export async function saveLocation(name: string) {
 export async function updateLocation(oldName: string, newName: string) {
   console.log("🔄 updateLocation aangeroepen:", { oldName, newName })
 
+  // Set edit flag to pause subscription
+  setLocationEditInProgress(true)
+
   if (!isSupabaseConfigured()) {
     console.log("💾 Supabase niet beschikbaar - simuleer bijwerken locatie")
+    setTimeout(() => setLocationEditInProgress(false), 2000)
     return { data: { name: newName }, error: null }
   }
 
@@ -544,13 +616,22 @@ export async function updateLocation(oldName: string, newName: string) {
 
     if (error && error.code !== "MOCK_MODE") {
       console.error("❌ Database error bij bijwerken locatie:", error)
+      setLocationEditInProgress(false)
       return { data: { name: newName }, error: null }
     }
 
     console.log("✅ Locatie succesvol bijgewerkt")
+
+    // Reset flag after delay
+    setTimeout(() => {
+      console.log("🔄 Re-enabling location subscription after edit")
+      setLocationEditInProgress(false)
+    }, 3000)
+
     return { data: data?.[0] || { name: newName }, error: null }
   } catch (error) {
     console.error("❌ Onverwachte fout bij bijwerken locatie:", error)
+    setLocationEditInProgress(false)
     return { data: { name: newName }, error: null }
   }
 }
@@ -620,8 +701,12 @@ export async function savePurpose(name: string) {
 export async function updatePurpose(oldName: string, newName: string) {
   console.log("🔄 updatePurpose aangeroepen:", { oldName, newName })
 
+  // Set edit flag to pause subscription
+  setPurposeEditInProgress(true)
+
   if (!isSupabaseConfigured()) {
     console.log("💾 Supabase niet beschikbaar - simuleer bijwerken doel")
+    setTimeout(() => setPurposeEditInProgress(false), 2000)
     return { data: { name: newName }, error: null }
   }
 
@@ -632,13 +717,22 @@ export async function updatePurpose(oldName: string, newName: string) {
 
     if (error && error.code !== "MOCK_MODE") {
       console.error("❌ Database error bij bijwerken doel:", error)
+      setPurposeEditInProgress(false)
       return { data: { name: newName }, error: null }
     }
 
     console.log("✅ Doel succesvol bijgewerkt")
+
+    // Reset flag after delay
+    setTimeout(() => {
+      console.log("🔄 Re-enabling purpose subscription after edit")
+      setPurposeEditInProgress(false)
+    }, 3000)
+
     return { data: data?.[0] || { name: newName }, error: null }
   } catch (error) {
     console.error("❌ Onverwachte fout bij bijwerken doel:", error)
+    setPurposeEditInProgress(false)
     return { data: { name: newName }, error: null }
   }
 }
@@ -782,9 +876,13 @@ export async function fetchCategories() {
 
 export async function saveCategory(category: Omit<Category, "id"> | Category) {
   try {
+    // Set edit flag to pause subscription
+    setCategoryEditInProgress(true)
+
     if (!isSupabaseConfigured()) {
       console.log("💾 Supabase niet beschikbaar - simuleer opslaan categorie")
       const newCategory = { ...category, id: (category as Category).id || Date.now().toString() } as Category
+      setTimeout(() => setCategoryEditInProgress(false), 2000)
       return { data: newCategory, error: null }
     }
 
@@ -802,6 +900,7 @@ export async function saveCategory(category: Omit<Category, "id"> | Category) {
 
       if (error) {
         console.error("❌ Error updating category:", error)
+        setCategoryEditInProgress(false)
         return { data: category as Category, error: null }
       }
 
@@ -809,6 +908,12 @@ export async function saveCategory(category: Omit<Category, "id"> | Category) {
         id: data.id.toString(),
         name: data.name,
       }
+
+      // Reset flag after delay
+      setTimeout(() => {
+        console.log("🔄 Re-enabling category subscription after edit")
+        setCategoryEditInProgress(false)
+      }, 3000)
 
       return { data: mappedCategory, error: null }
     } else {
@@ -822,6 +927,7 @@ export async function saveCategory(category: Omit<Category, "id"> | Category) {
       if (error) {
         console.error("❌ Error saving category:", error)
         const newCategory = { ...category, id: Date.now().toString() } as Category
+        setCategoryEditInProgress(false)
         return { data: newCategory, error: null }
       }
 
@@ -830,11 +936,15 @@ export async function saveCategory(category: Omit<Category, "id"> | Category) {
         name: data.name,
       }
 
+      // Reset flag after delay
+      setTimeout(() => setCategoryEditInProgress(false), 2000)
+
       return { data: mappedCategory, error: null }
     }
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan categorie:", error)
     const newCategory = { ...category, id: (category as Category).id || Date.now().toString() } as Category
+    setCategoryEditInProgress(false)
     return { data: newCategory, error: null }
   }
 }
@@ -860,7 +970,7 @@ export async function deleteCategory(id: string) {
   }
 }
 
-// ===== REALTIME SUBSCRIPTIONS (SAFE FALLBACKS) =====
+// ===== REALTIME SUBSCRIPTIONS WITH PAUSE MECHANISM =====
 export function subscribeToUsers(callback: (users: string[]) => void) {
   debugLog("Setting up users subscription")
 
@@ -875,6 +985,12 @@ export function subscribeToUsers(callback: (users: string[]) => void) {
     const subscription = supabase
       .channel("users-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "users" }, async (payload) => {
+        // Check if edit is in progress
+        if (isUserEditInProgress) {
+          console.log("🔄 User edit in progress, skipping subscription update")
+          return
+        }
+
         debugLog("Users change detected:", payload)
         const { data, error } = await fetchUsers()
 
@@ -908,18 +1024,24 @@ export function subscribeToProducts(callback: (products: Product[]) => void) {
     const subscription = supabase
       .channel("products-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, async (payload) => {
+        // Check if edit is in progress
+        if (isProductEditInProgress) {
+          console.log("🔄 Product edit in progress, skipping subscription update")
+          return
+        }
+
         console.log("📦 Products change detected:", payload)
 
-        // Add a small delay to allow local state to update first
+        // Add a small delay to allow database to settle
         setTimeout(async () => {
-          console.log("🔄 Fetching updated products due to subscription (with delay)")
+          console.log("🔄 Fetching updated products due to subscription")
           const { data, error } = await fetchProducts()
 
           if (!error && data) {
             console.log("📦 Calling callback with updated products:", data.length)
             callback(data)
           }
-        }, 500) // 500ms delay
+        }, 500)
       })
       .subscribe((status) => {
         debugLog(`Products subscription status: ${status}`)
@@ -946,6 +1068,12 @@ export function subscribeToLocations(callback: (locations: string[]) => void) {
     const subscription = supabase
       .channel("locations-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "locations" }, async (payload) => {
+        // Check if edit is in progress
+        if (isLocationEditInProgress) {
+          console.log("🔄 Location edit in progress, skipping subscription update")
+          return
+        }
+
         debugLog("Locations change detected:", payload)
         const { data, error } = await fetchLocations()
 
@@ -979,6 +1107,12 @@ export function subscribeToPurposes(callback: (purposes: string[]) => void) {
     const subscription = supabase
       .channel("purposes-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "purposes" }, async (payload) => {
+        // Check if edit is in progress
+        if (isPurposeEditInProgress) {
+          console.log("🔄 Purpose edit in progress, skipping subscription update")
+          return
+        }
+
         debugLog("Purposes change detected:", payload)
         const { data, error } = await fetchPurposes()
 
@@ -1038,6 +1172,12 @@ export function subscribeToCategories(callback: (categories: Category[]) => void
     const subscription = supabase
       .channel("categories-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, async (payload) => {
+        // Check if edit is in progress
+        if (isCategoryEditInProgress) {
+          console.log("🔄 Category edit in progress, skipping subscription update")
+          return
+        }
+
         debugLog("Categories change detected:", payload)
         const { data, error } = await fetchCategories()
 
