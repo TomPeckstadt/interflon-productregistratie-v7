@@ -1936,76 +1936,306 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
           </TabsContent>
 
           <TabsContent value="statistics">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📊 Statistieken</CardTitle>
-                <CardDescription>Overzicht van registraties en gebruik</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600">Totaal Registraties</CardTitle>
+            <div className="space-y-6">
+              {/* Header */}
+              <Card className="shadow-sm">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+                  <CardTitle className="flex items-center gap-2 text-xl">📊 Statistieken</CardTitle>
+                  <CardDescription>Overzicht van product registraties</CardDescription>
+                </CardHeader>
+              </Card>
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-medium text-gray-900">Totaal Registraties</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold text-gray-900">{registrations.length}</div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-medium text-gray-900">Unieke Gebruikers</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold text-gray-900">
+                      {registrations.length > 0 ? new Set(registrations.map((r) => r.user)).size : users.length}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-medium text-gray-900">Unieke Producten</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-4xl font-bold text-gray-900">
+                      {registrations.length > 0 ? new Set(registrations.map((r) => r.product)).size : products.length}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Activity */}
+              {registrations.length > 0 && (
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-medium text-gray-900">Recente Activiteit</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-gray-600">Datum</TableHead>
+                          <TableHead className="text-gray-600">Gebruiker</TableHead>
+                          <TableHead className="text-gray-600">Product</TableHead>
+                          <TableHead className="text-gray-600">Locatie</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {registrations
+                          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                          .slice(0, 6)
+                          .map((registration) => (
+                            <TableRow key={registration.id}>
+                              <TableCell className="text-gray-900">
+                                {new Date(registration.timestamp).toLocaleDateString("nl-NL", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                })}{" "}
+                                {new Date(registration.timestamp).toLocaleTimeString("nl-NL", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </TableCell>
+                              <TableCell className="text-gray-900">{registration.user}</TableCell>
+                              <TableCell className="text-gray-900">{registration.product}</TableCell>
+                              <TableCell className="text-gray-900">{registration.location}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Top 5 Statistics */}
+              {registrations.length > 0 && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+                  {/* Top 5 Gebruikers */}
+                  <Card className="shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Gebruikers</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{registrations.length}</div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-gray-600">Gebruiker</TableHead>
+                            <TableHead className="text-right text-gray-600">Aantal</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(
+                            registrations.reduce(
+                              (acc, reg) => {
+                                acc[reg.user] = (acc[reg.user] || 0) + 1
+                                return acc
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          )
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([user, count]) => (
+                              <TableRow key={user}>
+                                <TableCell className="text-gray-900">{user}</TableCell>
+                                <TableCell className="text-right text-gray-900 font-medium">{count}</TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600">Actieve Gebruikers</CardTitle>
+                  {/* Top 5 Producten */}
+                  <Card className="shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Producten</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{users.length}</div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-gray-600">Product</TableHead>
+                            <TableHead className="text-right text-gray-600">Aantal</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(
+                            registrations.reduce(
+                              (acc, reg) => {
+                                acc[reg.product] = (acc[reg.product] || 0) + 1
+                                return acc
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          )
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([product, count]) => (
+                              <TableRow key={product}>
+                                <TableCell className="text-gray-900">{product}</TableCell>
+                                <TableCell className="text-right text-gray-900 font-medium">{count}</TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600">Beschikbare Producten</CardTitle>
+                  {/* Top 5 Locaties */}
+                  <Card className="shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Locaties</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{products.length}</div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-gray-600">Locatie</TableHead>
+                            <TableHead className="text-right text-gray-600">Aantal</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {Object.entries(
+                            registrations.reduce(
+                              (acc, reg) => {
+                                acc[reg.location] = (acc[reg.location] || 0) + 1
+                                return acc
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          )
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([location, count]) => (
+                              <TableRow key={location}>
+                                <TableCell className="text-gray-900">{location}</TableCell>
+                                <TableCell className="text-right text-gray-900 font-medium">{count}</TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600">Locaties</CardTitle>
+                  {/* Top 5 Producten with Pie Chart */}
+                  <Card className="shadow-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Producten</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{locations.length}</div>
+                      <div className="space-y-4">
+                        {/* Simple Pie Chart Representation */}
+                        <div className="flex justify-center">
+                          <div className="w-32 h-32 rounded-full relative overflow-hidden">
+                            {(() => {
+                              const productCounts = Object.entries(
+                                registrations.reduce(
+                                  (acc, reg) => {
+                                    acc[reg.product] = (acc[reg.product] || 0) + 1
+                                    return acc
+                                  },
+                                  {} as Record<string, number>,
+                                ),
+                              ).sort(([, a], [, b]) => b - a)
+
+                              const total = productCounts.reduce((sum, [, count]) => sum + count, 0)
+                              const colors = ["#ff9999", "#99ff99", "#9999ff", "#ffff99", "#ff99ff"]
+                              let currentAngle = 0
+
+                              return productCounts.slice(0, 5).map(([product, count], index) => {
+                                const percentage = (count / total) * 100
+                                const angle = (count / total) * 360
+                                const startAngle = currentAngle
+                                currentAngle += angle
+
+                                const x1 = 50 + 50 * Math.cos((startAngle * Math.PI) / 180)
+                                const y1 = 50 + 50 * Math.sin((startAngle * Math.PI) / 180)
+                                const x2 = 50 + 50 * Math.cos(((startAngle + angle) * Math.PI) / 180)
+                                const y2 = 50 + 50 * Math.sin(((startAngle + angle) * Math.PI) / 180)
+
+                                const largeArcFlag = angle > 180 ? 1 : 0
+
+                                return (
+                                  <svg key={product} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                                    <path
+                                      d={`M 50 50 L ${x1} ${y1} A 50 50 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                      fill={colors[index % colors.length]}
+                                      opacity="0.8"
+                                    />
+                                  </svg>
+                                )
+                              })
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* Legend */}
+                        <div className="space-y-2">
+                          {Object.entries(
+                            registrations.reduce(
+                              (acc, reg) => {
+                                acc[reg.product] = (acc[reg.product] || 0) + 1
+                                return acc
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          )
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([product, count], index) => {
+                              const colors = ["#ff9999", "#99ff99", "#9999ff", "#ffff99", "#ff99ff"]
+                              return (
+                                <div key={product} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: colors[index % colors.length] }}
+                                    ></div>
+                                    <span className="text-gray-900 truncate max-w-[120px]" title={product}>
+                                      {product}
+                                    </span>
+                                  </div>
+                                  <span className="text-gray-900 font-medium">{count}</span>
+                                </div>
+                              )
+                            })}
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
+              )}
 
-                {registrations.length > 0 && (
-                  <div className="mt-8">
-                    <h3 className="text-lg font-semibold mb-4">Recente Registraties</h3>
-                    <div className="space-y-2">
-                      {registrations
-                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                        .slice(0, 5)
-                        .map((registration) => (
-                          <div
-                            key={registration.id}
-                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                          >
-                            <div>
-                              <span className="font-medium">{registration.user}</span> registreerde{" "}
-                              <span className="font-medium">{registration.product}</span>
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {new Date(registration.timestamp).toLocaleDateString("nl-NL")}
-                            </div>
-                          </div>
-                        ))}
+              {/* Empty State */}
+              {registrations.length === 0 && (
+                <Card className="shadow-sm">
+                  <CardContent className="p-12 text-center">
+                    <div className="text-gray-400 mb-4">
+                      <div className="text-6xl mb-4">📊</div>
+                      <h3 className="text-xl font-semibold text-gray-600 mb-2">Nog geen statistieken beschikbaar</h3>
+                      <p className="text-gray-500">Registreer enkele producten om statistieken te zien</p>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 
