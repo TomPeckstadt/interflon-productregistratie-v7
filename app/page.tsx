@@ -781,6 +781,13 @@ export default function ProductRegistrationApp() {
       setTimeout(() => setImportError(""), 3000)
     } else {
       console.log("✅ User removed successfully")
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local users refresh...")
+      const refreshResult = await fetchUsers()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local users state...")
+        setUsers(refreshResult.data)
+      }
       setImportMessage("✅ Gebruiker verwijderd!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
@@ -797,6 +804,13 @@ export default function ProductRegistrationApp() {
       setTimeout(() => setImportError(""), 3000)
     } else {
       console.log("✅ Product removed successfully")
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local products refresh...")
+      const refreshResult = await fetchProducts()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local products state...")
+        setProducts(refreshResult.data)
+      }
       setImportMessage("✅ Product verwijderd!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
@@ -813,6 +827,13 @@ export default function ProductRegistrationApp() {
       setTimeout(() => setImportError(""), 3000)
     } else {
       console.log("✅ Location removed successfully")
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local locations refresh...")
+      const refreshResult = await fetchLocations()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local locations state...")
+        setLocations(refreshResult.data)
+      }
       setImportMessage("✅ Locatie verwijderd!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
@@ -829,6 +850,13 @@ export default function ProductRegistrationApp() {
       setTimeout(() => setImportError(""), 3000)
     } else {
       console.log("✅ Purpose removed successfully")
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local purposes refresh...")
+      const refreshResult = await fetchPurposes()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local purposes state...")
+        setPurposes(refreshResult.data)
+      }
       setImportMessage("✅ Doel verwijderd!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
@@ -845,6 +873,13 @@ export default function ProductRegistrationApp() {
       setTimeout(() => setImportError(""), 3000)
     } else {
       console.log("✅ Category removed successfully")
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local categories refresh...")
+      const refreshResult = await fetchCategories()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local categories state...")
+        setCategories(refreshResult.data)
+      }
       setImportMessage("✅ Categorie verwijderd!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
