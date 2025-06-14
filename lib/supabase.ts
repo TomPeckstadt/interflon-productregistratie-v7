@@ -106,12 +106,13 @@ export const isSupabaseConfigured = (): boolean => {
   return !!(supabaseUrl && supabaseAnonKey)
 }
 
-// Type definities
+// Type definities - AANGEPAST voor nieuwe tabel structuur
 export interface Product {
   id?: string
   name: string
-  qrcode: string
-  categoryId?: string
+  qrcode?: string
+  category?: string
+  qr_code?: string
 }
 
 export interface Category {
@@ -121,14 +122,14 @@ export interface Category {
 
 export interface RegistrationEntry {
   id?: string
-  user: string
-  product: string
+  user_name: string
+  product_name: string
   location: string
   purpose: string
   timestamp: string
   date: string
   time: string
-  qrcode?: string
+  qr_code?: string
   created_at?: string
 }
 
@@ -140,15 +141,15 @@ const mockCategories: Category[] = [
 ]
 
 const mockUsers = ["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"]
-const mockLocations = ["Kantoor 1.1", "Kantoor 1.2", "Vergaderzaal A", "Warehouse", "Thuis"]
-const mockPurposes = ["Presentatie", "Thuiswerken", "Reparatie", "Training", "Demonstratie"]
+const mockLocations = ["Magazijn A", "Productielijn 1", "Productielijn 2", "Onderhoud werkplaats", "Kantoor"]
+const mockPurposes = ["Preventief onderhoud", "Reparatie", "Reiniging", "Smering", "Inspectie"]
 const mockProducts: Product[] = [
-  { id: "1", name: "Interflon Fin Super", qrcode: "IFLS001", categoryId: "1" },
-  { id: "2", name: "Interflon Food Lube", qrcode: "IFFL002", categoryId: "1" },
-  { id: "3", name: "Interflon Degreaser", qrcode: "IFD003", categoryId: "2" },
-  { id: "4", name: "Interflon Fin Grease", qrcode: "IFGR004", categoryId: "1" },
-  { id: "5", name: "Interflon Metal Clean", qrcode: "IFMC005", categoryId: "2" },
-  { id: "6", name: "Interflon Maintenance Kit", qrcode: "IFMK006", categoryId: "3" },
+  { id: "1", name: "Interflon Fin Super", qr_code: "IFS001", category: "Smeermiddelen" },
+  { id: "2", name: "Interflon Grease MP2", qr_code: "IGM002", category: "Smeermiddelen" },
+  { id: "3", name: "Interflon Cleaner", qr_code: "IC003", category: "Reinigers" },
+  { id: "4", name: "Interflon Lube", qr_code: "IL004", category: "Smeermiddelen" },
+  { id: "5", name: "Interflon Spray", qr_code: "IS005", category: "Smeermiddelen" },
+  { id: "6", name: "Interflon Degreaser", qr_code: "ID006", category: "Reinigers" },
 ]
 
 // ===== PRODUCT FUNCTIONALITEIT =====
@@ -160,7 +161,7 @@ export async function fetchProducts() {
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase.from("products").select("*").order("id", { ascending: true })
 
     if (error) {
       if (error.code === "MOCK_MODE") {
@@ -168,19 +169,22 @@ export async function fetchProducts() {
         return { data: mockProducts, error: null }
       }
 
-      if (
-        error.message.includes('relation "public.products" does not exist') ||
-        error.message.includes("does not exist")
-      ) {
-        console.log("📦 Products table bestaat niet - gebruik mock data")
-        return { data: mockProducts, error: null }
-      }
-
       console.error("❌ Error fetching products:", error)
       return { data: mockProducts, error: null }
     }
 
-    return { data: data || mockProducts, error: null }
+    // Map de data naar het verwachte formaat
+    const mappedProducts =
+      data?.map((product) => ({
+        id: product.id.toString(),
+        name: product.name,
+        qrcode: product.qr_code,
+        categoryId: product.category === "Smeermiddelen" ? "1" : product.category === "Reinigers" ? "2" : "3",
+        created_at: product.created_at,
+      })) || mockProducts
+
+    console.log("📦 Products fetched:", mappedProducts.length)
+    return { data: mappedProducts, error: null }
   } catch (error) {
     console.log("📦 Onverwachte fout bij ophalen producten - gebruik mock data:", error)
     return { data: mockProducts, error: null }
@@ -196,20 +200,32 @@ export async function saveProduct(product: Product) {
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("products").insert([product]).select()
+
+    // Map categoryId naar category naam
+    const categoryName =
+      product.categoryId === "1"
+        ? "Smeermiddelen"
+        : product.categoryId === "2"
+          ? "Reinigers"
+          : product.categoryId === "3"
+            ? "Onderhoud"
+            : null
+
+    const productData = {
+      name: product.name,
+      category: categoryName,
+      qr_code: product.qrcode,
+    }
+
+    const { data, error } = await supabase.from("products").insert([productData]).select()
 
     if (error) {
-      if (error.code === "MOCK_MODE") {
-        console.log("💾 Mock modus - simuleer opslaan product")
-        const newProduct = { ...product, id: Date.now().toString() }
-        return { data: newProduct, error: null }
-      }
-
       console.error("❌ Error saving product:", error)
       const newProduct = { ...product, id: Date.now().toString() }
       return { data: newProduct, error: null }
     }
 
+    console.log("✅ Product saved to Supabase")
     return { data: data?.[0] || null, error: null }
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan product - simuleer lokaal:", error)
@@ -239,7 +255,7 @@ export async function deleteProduct(id: string) {
     return { success: true, error: null }
   } catch (error) {
     console.error("❌ Onverwachte fout bij verwijderen product:", error)
-    return { success: true, error: null } // Graceful fallback
+    return { success: true, error: null }
   }
 }
 
@@ -252,7 +268,7 @@ export async function fetchUsers() {
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("users").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase.from("users").select("*").order("id", { ascending: true })
 
     if (error) {
       if (error.code === "MOCK_MODE") {
@@ -260,19 +276,13 @@ export async function fetchUsers() {
         return { data: mockUsers, error: null }
       }
 
-      if (
-        error.message.includes('relation "public.users" does not exist') ||
-        error.message.includes("does not exist")
-      ) {
-        console.log("👥 Users table bestaat niet - gebruik mock data")
-        return { data: mockUsers, error: null }
-      }
-
       console.error("❌ Error fetching users:", error)
       return { data: mockUsers, error: null }
     }
 
-    return { data: data?.map((user) => user.name) || mockUsers, error: null }
+    const userNames = data?.map((user) => user.name) || mockUsers
+    console.log("👥 Users fetched:", userNames.length)
+    return { data: userNames, error: null }
   } catch (error) {
     console.log("👥 Onverwachte fout bij ophalen gebruikers - gebruik mock data:", error)
     return { data: mockUsers, error: null }
@@ -294,11 +304,6 @@ export async function saveUser(name: string) {
     const { data, error } = await supabase.from("users").insert([{ name }]).select()
 
     if (error) {
-      if (error.code === "MOCK_MODE") {
-        console.log("💾 Mock modus - simuleer opslaan gebruiker")
-        return { data: { name }, error: null }
-      }
-
       console.error("❌ Database error bij opslaan gebruiker:", error)
       return { data: { name }, error: null }
     }
@@ -346,7 +351,7 @@ export async function fetchLocations() {
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("locations").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase.from("locations").select("*").order("id", { ascending: true })
 
     if (error) {
       if (error.code === "MOCK_MODE") {
@@ -358,7 +363,9 @@ export async function fetchLocations() {
       return { data: mockLocations, error: null }
     }
 
-    return { data: data?.map((location) => location.name) || mockLocations, error: null }
+    const locationNames = data?.map((location) => location.name) || mockLocations
+    console.log("📍 Locations fetched:", locationNames.length)
+    return { data: locationNames, error: null }
   } catch (error) {
     console.log("📍 Onverwachte fout bij ophalen locaties - gebruik mock data:", error)
     return { data: mockLocations, error: null }
@@ -406,7 +413,7 @@ export async function fetchPurposes() {
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("purposes").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase.from("purposes").select("*").order("id", { ascending: true })
 
     if (error) {
       if (error.code === "MOCK_MODE") {
@@ -418,7 +425,9 @@ export async function fetchPurposes() {
       return { data: mockPurposes, error: null }
     }
 
-    return { data: data?.map((purpose) => purpose.name) || mockPurposes, error: null }
+    const purposeNames = data?.map((purpose) => purpose.name) || mockPurposes
+    console.log("🎯 Purposes fetched:", purposeNames.length)
+    return { data: purposeNames, error: null }
   } catch (error) {
     console.log("🎯 Onverwachte fout bij ophalen doelen - gebruik mock data:", error)
     return { data: mockPurposes, error: null }
@@ -457,7 +466,7 @@ export async function deletePurpose(name: string) {
   return { success: true, error: null }
 }
 
-// ===== REGISTRATIES FUNCTIONALITEIT =====
+// ===== REGISTRATIES FUNCTIONALITEIT - AANGEPAST =====
 export async function fetchRegistrations() {
   try {
     if (!isSupabaseConfigured()) {
@@ -466,7 +475,7 @@ export async function fetchRegistrations() {
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("registrations").select("*").order("created_at", { ascending: false })
+    const { data, error } = await supabase.from("registrations").select("*").order("timestamp", { ascending: false })
 
     if (error) {
       if (error.code === "MOCK_MODE") {
@@ -478,7 +487,24 @@ export async function fetchRegistrations() {
       return { data: [], error: null }
     }
 
-    return { data: data || [], error: null }
+    console.log("📋 Raw registrations from Supabase:", data)
+
+    // Map de data naar het verwachte formaat
+    const mappedRegistrations =
+      data?.map((reg) => ({
+        id: reg.id.toString(),
+        user: reg.user_name,
+        product: reg.product_name,
+        location: reg.location,
+        purpose: reg.purpose,
+        timestamp: reg.timestamp,
+        date: reg.date,
+        time: reg.time,
+        qrcode: reg.qr_code,
+      })) || []
+
+    console.log("📋 Mapped registrations:", mappedRegistrations)
+    return { data: mappedRegistrations, error: null }
   } catch (error) {
     console.log("📋 Onverwachte fout bij ophalen registraties:", error)
     return { data: [], error: null }
@@ -494,20 +520,30 @@ export async function saveRegistration(registration: Omit<RegistrationEntry, "id
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("registrations").insert([registration]).select()
+
+    // Map de data naar de juiste kolom namen
+    const registrationData = {
+      user_name: registration.user_name,
+      product_name: registration.product_name,
+      location: registration.location,
+      purpose: registration.purpose,
+      timestamp: registration.timestamp,
+      date: registration.date,
+      time: registration.time,
+      qr_code: registration.qr_code,
+    }
+
+    console.log("💾 Saving registration to Supabase:", registrationData)
+
+    const { data, error } = await supabase.from("registrations").insert([registrationData]).select()
 
     if (error) {
-      if (error.code === "MOCK_MODE") {
-        console.log("💾 Mock modus - simuleer opslaan registratie")
-        const newRegistration = { ...registration, id: Date.now().toString() }
-        return { data: newRegistration, error: null }
-      }
-
       console.error("❌ Error saving registration:", error)
       const newRegistration = { ...registration, id: Date.now().toString() }
       return { data: newRegistration, error: null }
     }
 
+    console.log("✅ Registration saved to Supabase:", data)
     return { data: data?.[0] || null, error: null }
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan registratie:", error)
@@ -537,7 +573,14 @@ export async function fetchCategories() {
       return { data: mockCategories, error: null }
     }
 
-    return { data: data || mockCategories, error: null }
+    const mappedCategories =
+      data?.map((cat) => ({
+        id: cat.id.toString(),
+        name: cat.name,
+      })) || mockCategories
+
+    console.log("🗂️ Categories fetched:", mappedCategories.length)
+    return { data: mappedCategories, error: null }
   } catch (error) {
     console.log("🗂️ Onverwachte fout bij ophalen categorieën - gebruik mock data:", error)
     return { data: mockCategories, error: null }
@@ -556,18 +599,17 @@ export async function saveCategory(category: Omit<Category, "id">) {
     const { data, error } = await supabase.from("categories").insert([category]).select().single()
 
     if (error) {
-      if (error.code === "MOCK_MODE") {
-        console.log("💾 Mock modus - simuleer opslaan categorie")
-        const newCategory = { ...category, id: Date.now().toString() } as Category
-        return { data: newCategory, error: null }
-      }
-
       console.error("❌ Error saving category:", error)
       const newCategory = { ...category, id: Date.now().toString() } as Category
       return { data: newCategory, error: null }
     }
 
-    return { data, error: null }
+    const mappedCategory = {
+      id: data.id.toString(),
+      name: data.name,
+    }
+
+    return { data: mappedCategory, error: null }
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan categorie:", error)
     const newCategory = { ...category, id: Date.now().toString() } as Category
@@ -741,8 +783,12 @@ export function subscribeToRegistrations(callback: (registrations: RegistrationE
     return supabase
       .channel("registrations-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "registrations" }, async () => {
+        console.log("📋 Registrations change detected - fetching updated data")
         const { data } = await fetchRegistrations()
-        if (data) callback(data)
+        if (data) {
+          console.log("📋 Calling callback with updated registrations:", data.length)
+          callback(data)
+        }
       })
       .subscribe()
   } catch (error) {
