@@ -39,6 +39,7 @@ import {
   subscribeToPurposes,
   subscribeToCategories,
   subscribeToRegistrations,
+  setProductEditInProgress,
   isSupabaseConfigured,
 } from "@/lib/supabase"
 
@@ -1623,6 +1624,11 @@ export default function ProductRegistrationApp() {
               </Button>
               <Button
                 onClick={async () => {
+                  console.log("🔄 Starting product edit process")
+
+                  // Disable real-time subscription during edit
+                  setProductEditInProgress(true)
+
                   if (isSupabaseConnected) {
                     console.log("🔄 Saving edited product:", editingProduct)
                     const result = await saveProduct(editingProduct)
@@ -1642,6 +1648,13 @@ export default function ProductRegistrationApp() {
                     setImportMessage("✅ Product bijgewerkt!")
                     setTimeout(() => setImportMessage(""), 2000)
                   }
+
+                  // Re-enable real-time subscription after a delay
+                  setTimeout(() => {
+                    setProductEditInProgress(false)
+                    console.log("🔄 Product edit process completed, re-enabling subscription")
+                  }, 2000)
+
                   setShowEditDialog(false)
                   setEditingProduct(null)
                 }}
