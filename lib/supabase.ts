@@ -8,6 +8,21 @@ console.log("🔧 Supabase Configuration Check:")
 console.log("URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
 console.log("Key:", supabaseAnonKey ? "✅ Set" : "❌ Missing")
 
+// Add this right after the existing console.log statements
+console.log("🔧 Full environment check:")
+console.log("- NODE_ENV:", process.env.NODE_ENV)
+console.log("- URL length:", supabaseUrl?.length || 0)
+console.log("- Key length:", supabaseAnonKey?.length || 0)
+console.log("- URL starts with https:", supabaseUrl?.startsWith("https://"))
+console.log("- URL contains supabase.co:", supabaseUrl?.includes("supabase.co"))
+
+// Test the actual values (safely)
+if (supabaseUrl && supabaseAnonKey) {
+  console.log("🔧 Attempting to create Supabase client...")
+  console.log("- URL format check:", /^https:\/\/[a-z]+\.supabase\.co$/.test(supabaseUrl))
+  console.log("- Key format check:", supabaseAnonKey.length > 100)
+}
+
 // Check if Supabase is configured
 export const isSupabaseConfigured = () => {
   console.log("🔧 Environment variables check:")
