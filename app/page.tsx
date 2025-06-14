@@ -60,13 +60,15 @@ interface Category {
 
 interface Registration {
   id: string
-  productId: string
-  productName: string
   user: string
+  product: string
   location: string
   purpose: string
   timestamp: string
+  date: string
+  time: string
   qrcode?: string
+  created_at?: string
 }
 
 export default function ProductRegistrationApp() {
@@ -175,7 +177,6 @@ export default function ProductRegistrationApp() {
         locations: locationsResult.data?.length || 0,
         purposes: purposesResult.data?.length || 0,
         categories: categoriesResult.data?.length || 0,
-        registrations: registrationsResult.data?.length || 0,
       })
 
       // Check if we have a real Supabase connection (not mock mode)
@@ -194,6 +195,9 @@ export default function ProductRegistrationApp() {
         setPurposes(purposesResult.data || [])
         setCategories(categoriesResult.data || [])
         setRegistrations(registrationsResult.data || [])
+
+        console.log("📋 Registrations loaded:", registrationsResult.data?.length || 0)
+        console.log("📋 Current registrations state:", registrations.length)
 
         // Set default user if available
         if (usersResult.data && usersResult.data.length > 0) {
@@ -290,7 +294,7 @@ export default function ProductRegistrationApp() {
   }
 
   const setupSubscriptions = () => {
-    console.log("��� Setting up real-time subscriptions...")
+    console.log("🔔 Setting up real-time subscriptions...")
 
     const usersSub = subscribeToUsers((newUsers) => {
       console.log("👥 Users updated:", newUsers.length)
@@ -399,12 +403,13 @@ export default function ProductRegistrationApp() {
 
       const newRegistration: Registration = {
         id: Date.now().toString(),
-        productId: product?.id || "",
-        productName: selectedProduct,
         user: currentUser,
+        product: selectedProduct,
         location,
         purpose,
         timestamp: now.toISOString(),
+        date: now.toISOString().split("T")[0],
+        time: now.toTimeString().split(" ")[0],
         qrcode: product?.qrcode,
       }
 
@@ -1398,7 +1403,7 @@ export default function ProductRegistrationApp() {
                         <TableRow key={registration.id}>
                           <TableCell>{new Date(registration.timestamp).toLocaleDateString("nl-NL")}</TableCell>
                           <TableCell>{registration.user}</TableCell>
-                          <TableCell>{registration.productName}</TableCell>
+                          <TableCell>{registration.product}</TableCell>
                           <TableCell>{registration.location}</TableCell>
                           <TableCell>{registration.purpose}</TableCell>
                         </TableRow>
