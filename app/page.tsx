@@ -34,6 +34,7 @@ import {
   updatePurpose,
   updateProduct,
   updateCategory,
+  testSupabaseConnection,
 } from "@/lib/supabase"
 
 // Types
@@ -156,53 +157,65 @@ export default function ProductRegistrationApp() {
       console.log("🔧 Supabase configured:", supabaseConfigured)
 
       if (supabaseConfigured) {
-        console.log("🔄 Loading from Supabase...")
-        const [usersResult, productsResult, locationsResult, purposesResult, categoriesResult, registrationsResult] =
-          await Promise.all([
-            fetchUsers(),
-            fetchProducts(),
-            fetchLocations(),
-            fetchPurposes(),
-            fetchCategories(),
-            fetchRegistrations(),
-          ])
+        console.log("🔄 Testing Supabase connection...")
 
-        console.log("📊 Supabase results:", {
-          users: { success: !usersResult.error, count: usersResult.data?.length || 0 },
-          products: { success: !productsResult.error, count: productsResult.data?.length || 0 },
-          locations: { success: !locationsResult.error, count: locationsResult.data?.length || 0 },
-          purposes: { success: !purposesResult.error, count: purposesResult.data?.length || 0 },
-          categories: { success: !categoriesResult.error, count: categoriesResult.data?.length || 0 },
-        })
+        // Test connection first
+        const connectionTest = await testSupabaseConnection()
 
-        // Check if we have successful connection
-        const hasErrors = usersResult.error || productsResult.error || categoriesResult.error
+        if (connectionTest) {
+          console.log("🔄 Loading from Supabase...")
+          const [usersResult, productsResult, locationsResult, purposesResult, categoriesResult, registrationsResult] =
+            await Promise.all([
+              fetchUsers(),
+              fetchProducts(),
+              fetchLocations(),
+              fetchPurposes(),
+              fetchCategories(),
+              fetchRegistrations(),
+            ])
 
-        if (!hasErrors) {
-          console.log("✅ Supabase connected successfully")
-          setIsSupabaseConnected(true)
-          setConnectionStatus("Supabase verbonden")
+          console.log("📊 Supabase results:", {
+            users: { success: !usersResult.error, count: usersResult.data?.length || 0 },
+            products: { success: !productsResult.error, count: productsResult.data?.length || 0 },
+            locations: { success: !locationsResult.error, count: locationsResult.data?.length || 0 },
+            purposes: { success: !purposesResult.error, count: purposesResult.data?.length || 0 },
+            categories: { success: !categoriesResult.error, count: categoriesResult.data?.length || 0 },
+          })
 
-          // Set data from Supabase
-          setUsers(usersResult.data || [])
-          setProducts(productsResult.data || [])
-          setLocations(locationsResult.data || [])
-          setPurposes(purposesResult.data || [])
-          setCategories(categoriesResult.data || [])
-          setRegistrations(registrationsResult.data || [])
+          // Check if we have successful connection
+          const hasErrors = usersResult.error || productsResult.error || categoriesResult.error
 
-          // Set up real-time subscriptions
-          setupSubscriptions()
+          if (!hasErrors) {
+            console.log("✅ Supabase connected successfully")
+            setIsSupabaseConnected(true)
+            setConnectionStatus("Supabase verbonden")
+
+            // Set data from Supabase
+            setUsers(usersResult.data || [])
+            setProducts(productsResult.data || [])
+            setLocations(locationsResult.data || [])
+            setPurposes(purposesResult.data || [])
+            setCategories(categoriesResult.data || [])
+            setRegistrations(registrationsResult.data || [])
+
+            // Set up real-time subscriptions
+            setupSubscriptions()
+          } else {
+            console.log("⚠️ Supabase data fetch failed - using mock data")
+            setIsSupabaseConnected(false)
+            setConnectionStatus("Mock data actief (data fetch failed)")
+            loadMockData()
+          }
         } else {
-          console.log("⚠️ Supabase connection failed - using mock data")
+          console.log("⚠️ Supabase connection test failed - using mock data")
           setIsSupabaseConnected(false)
-          setConnectionStatus("Mock data actief")
+          setConnectionStatus("Mock data actief (connection failed)")
           loadMockData()
         }
       } else {
         console.log("⚠️ Supabase not configured - using mock data")
         setIsSupabaseConnected(false)
-        setConnectionStatus("Mock data actief")
+        setConnectionStatus("Mock data actief (not configured)")
         loadMockData()
       }
 
@@ -213,7 +226,7 @@ export default function ProductRegistrationApp() {
     } catch (error) {
       console.error("❌ Error loading data:", error)
       setIsSupabaseConnected(false)
-      setConnectionStatus("Mock data actief")
+      setConnectionStatus("Mock data actief (error)")
       loadMockData()
     }
   }
