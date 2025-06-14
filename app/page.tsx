@@ -2047,8 +2047,8 @@ export default function ProductRegistrationApp() {
                     <div className="bg-white p-4 rounded-lg border border-gray-200">
                       <h3 className="font-semibold text-gray-800 text-lg mb-4">Top 5 Producten</h3>
                       <div className="space-y-4">
-                        {/* Simple visual representation */}
-                        <div className="space-y-2">
+                        {/* Progress bars with better visualization */}
+                        <div className="space-y-3">
                           {Object.entries(
                             registrations.reduce(
                               (acc, reg) => {
@@ -2062,11 +2062,11 @@ export default function ProductRegistrationApp() {
                             .slice(0, 5)
                             .map(([product, count], index) => {
                               const colors = [
-                                "bg-red-200",
-                                "bg-green-200",
-                                "bg-blue-200",
-                                "bg-yellow-200",
-                                "bg-purple-200",
+                                "bg-red-400",
+                                "bg-green-400",
+                                "bg-blue-400",
+                                "bg-yellow-400",
+                                "bg-purple-400",
                               ]
                               const maxCount = Math.max(
                                 ...Object.values(
@@ -2082,14 +2082,14 @@ export default function ProductRegistrationApp() {
                               const percentage = (count / maxCount) * 100
 
                               return (
-                                <div key={product} className="space-y-1">
+                                <div key={product} className="space-y-2">
                                   <div className="flex justify-between text-xs">
-                                    <span className="truncate">{product}</span>
-                                    <span className="font-medium">{count}</span>
+                                    <span className="truncate font-medium">{product}</span>
+                                    <span className="font-bold">{count}</span>
                                   </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div className="w-full bg-gray-200 rounded-full h-3">
                                     <div
-                                      className={`h-2 rounded-full ${colors[index]}`}
+                                      className={`h-3 rounded-full ${colors[index]} transition-all duration-500`}
                                       style={{ width: `${percentage}%` }}
                                     ></div>
                                   </div>
@@ -2098,33 +2098,95 @@ export default function ProductRegistrationApp() {
                             })}
                         </div>
 
-                        {/* Simple pie chart representation */}
-                        <div className="flex justify-center mt-4">
-                          <div className="w-24 h-24 rounded-full border-8 border-gray-200 relative overflow-hidden">
-                            {Object.entries(
-                              registrations.reduce(
-                                (acc, reg) => {
-                                  acc[reg.product] = (acc[reg.product] || 0) + 1
-                                  return acc
-                                },
-                                {} as Record<string, number>,
-                              ),
-                            )
-                              .sort(([, a], [, b]) => b - a)
-                              .slice(0, 4)
-                              .map(([product, count], index) => {
-                                const colors = ["bg-red-300", "bg-green-300", "bg-blue-300", "bg-yellow-300"]
-                                return (
-                                  <div
-                                    key={product}
-                                    className={`absolute inset-0 ${colors[index]} opacity-70`}
-                                    style={{
-                                      clipPath: `polygon(50% 50%, 50% 0%, ${50 + index * 25}% 0%, ${50 + (index + 1) * 25}% 0%)`,
-                                    }}
-                                  ></div>
-                                )
-                              })}
+                        {/* Simple donut chart with SVG */}
+                        <div className="flex justify-center mt-6">
+                          <div className="relative">
+                            <svg width="120" height="120" className="transform -rotate-90">
+                              <circle cx="60" cy="60" r="50" fill="none" stroke="#e5e7eb" strokeWidth="20" />
+                              {Object.entries(
+                                registrations.reduce(
+                                  (acc, reg) => {
+                                    acc[reg.product] = (acc[reg.product] || 0) + 1
+                                    return acc
+                                  },
+                                  {} as Record<string, number>,
+                                ),
+                              )
+                                .sort(([, a], [, b]) => b - a)
+                                .slice(0, 5)
+                                .reduce((segments, [product, count], index) => {
+                                  const total = registrations.length
+                                  const percentage = (count / total) * 100
+                                  const strokeDasharray = `${percentage * 3.14} 314`
+                                  const colors = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#a855f7"]
+
+                                  const previousPercentage = segments.reduce((sum, seg) => sum + seg.percentage, 0)
+                                  const strokeDashoffset = -previousPercentage * 3.14
+
+                                  segments.push({
+                                    product,
+                                    count,
+                                    percentage,
+                                    strokeDasharray,
+                                    strokeDashoffset,
+                                    color: colors[index],
+                                  })
+
+                                  return segments
+                                }, [] as any[])
+                                .map((segment, index) => (
+                                  <circle
+                                    key={segment.product}
+                                    cx="60"
+                                    cy="60"
+                                    r="50"
+                                    fill="none"
+                                    stroke={segment.color}
+                                    strokeWidth="20"
+                                    strokeDasharray={segment.strokeDasharray}
+                                    strokeDashoffset={segment.strokeDashoffset}
+                                    className="transition-all duration-500"
+                                  />
+                                ))}
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <div className="text-lg font-bold text-gray-800">{registrations.length}</div>
+                                <div className="text-xs text-gray-500">Totaal</div>
+                              </div>
+                            </div>
                           </div>
+                        </div>
+
+                        {/* Legend */}
+                        <div className="grid grid-cols-1 gap-1 text-xs">
+                          {Object.entries(
+                            registrations.reduce(
+                              (acc, reg) => {
+                                acc[reg.product] = (acc[reg.product] || 0) + 1
+                                return acc
+                              },
+                              {} as Record<string, number>,
+                            ),
+                          )
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([product, count], index) => {
+                              const colors = [
+                                "bg-red-400",
+                                "bg-green-400",
+                                "bg-blue-400",
+                                "bg-yellow-400",
+                                "bg-purple-400",
+                              ]
+                              return (
+                                <div key={product} className="flex items-center gap-2">
+                                  <div className={`w-3 h-3 rounded-full ${colors[index]}`}></div>
+                                  <span className="truncate flex-1">{product}</span>
+                                  <span className="font-medium">{count}</span>
+                                </div>
+                              )
+                            })}
                         </div>
                       </div>
                     </div>
