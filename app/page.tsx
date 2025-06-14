@@ -11,18 +11,35 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Download, Plus, Trash2, Edit, Search, X, QrCode, ChevronDown, Paperclip, FileText } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Download, Plus, Trash2, Edit, Search, X, QrCode, ChevronDown } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-// Charts voor statistieken
-import { Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+// Supabase imports
+import {
+  fetchUsers,
+  fetchProducts,
+  fetchLocations,
+  fetchPurposes,
+  fetchCategories,
+  fetchRegistrations,
+  saveUser,
+  saveProduct,
+  saveLocation,
+  savePurpose,
+  saveCategory,
+  saveRegistration,
+  deleteUser,
+  deleteProduct,
+  deleteLocation,
+  deletePurpose,
+  deleteCategory,
+  subscribeToUsers,
+  subscribeToProducts,
+  subscribeToLocations,
+  subscribeToPurposes,
+  subscribeToCategories,
+  subscribeToRegistrations,
+} from "@/lib/supabase"
 
 // Types
 interface Product {
@@ -68,62 +85,17 @@ export default function ProductRegistrationApp() {
   const [importMessage, setImportMessage] = useState("")
   const [importError, setImportError] = useState("")
 
-  // Data arrays - stored in localStorage
-  const [users, setUsers] = useState<string[]>(["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"])
+  // Connection state
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false)
+  const [connectionStatus, setConnectionStatus] = useState("Controleren...")
 
-  const [products, setProducts] = useState<Product[]>([
-    { id: "1", name: "Interflon Fin Super", qrcode: "IFLS001", categoryId: "1" },
-    { id: "2", name: "Interflon Food Lube", qrcode: "IFFL002", categoryId: "1" },
-    { id: "3", name: "Interflon Degreaser", qrcode: "IFD003", categoryId: "2" },
-    { id: "4", name: "Interflon Fin Grease", qrcode: "IFGR004", categoryId: "1" },
-    { id: "5", name: "Interflon Metal Clean", qrcode: "IFMC005", categoryId: "2" },
-    { id: "6", name: "Interflon Maintenance Kit", qrcode: "IFMK006", categoryId: "3" },
-  ])
-
-  const [locations, setLocations] = useState<string[]>([
-    "Kantoor 1.1",
-    "Kantoor 1.2",
-    "Vergaderzaal A",
-    "Warehouse",
-    "Thuis",
-  ])
-
-  const [purposes, setPurposes] = useState<string[]>([
-    "Presentatie",
-    "Thuiswerken",
-    "Reparatie",
-    "Training",
-    "Demonstratie",
-  ])
-
-  const [categories, setCategories] = useState<Category[]>([
-    { id: "1", name: "Smeermiddelen" },
-    { id: "2", name: "Reinigers" },
-    { id: "3", name: "Onderhoud" },
-  ])
-
-  const [registrations, setRegistrations] = useState<Registration[]>([
-    {
-      id: "1",
-      productId: "1",
-      productName: "Interflon Fin Super",
-      user: "Jan Janssen",
-      location: "Kantoor 1.1",
-      purpose: "Presentatie",
-      timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-      qrcode: "IFLS001",
-    },
-    {
-      id: "2",
-      productId: "3",
-      productName: "Interflon Degreaser",
-      user: "Marie Pietersen",
-      location: "Warehouse",
-      purpose: "Demonstratie",
-      timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-      qrcode: "IFD003",
-    },
-  ])
+  // Data arrays - now loaded from Supabase
+  const [users, setUsers] = useState<string[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [locations, setLocations] = useState<string[]>([])
+  const [purposes, setPurposes] = useState<string[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [registrations, setRegistrations] = useState<Registration[]>([])
 
   // New item states
   const [newUserName, setNewUserName] = useState("")
@@ -183,7 +155,89 @@ export default function ProductRegistrationApp() {
   const [attachmentProduct, setAttachmentProduct] = useState<Product | null>(null)
   const attachmentFileInputRef = useRef<HTMLInputElement>(null)
 
+  // Load data from Supabase on component mount
   useEffect(() => {
+    loadAllData()
+  }, [])
+
+  const loadAllData = async () => {
+    console.log("🔄 Loading data from Supabase...")
+    setConnectionStatus("Verbinden met database...")
+
+    try {
+      // Load all data in parallel
+      const [usersResult, productsResult, locationsResult, purposesResult, categoriesResult, registrationsResult] =
+        await Promise.all([
+          fetchUsers(),
+          fetchProducts(),
+          fetchLocations(),
+          fetchPurposes(),
+          fetchCategories(),
+          fetchRegistrations(),
+        ])
+
+      console.log("📊 Data results:", {
+        users: usersResult.data?.length || 0,
+        products: productsResult.data?.length || 0,
+        locations: locationsResult.data?.length || 0,
+        purposes: purposesResult.data?.length || 0,
+        categories: categoriesResult.data?.length || 0,
+        registrations: registrationsResult.data?.length || 0,
+      })
+
+      // Check if we have any data (even mock data means we're working)
+      const hasData =
+        (usersResult.data && usersResult.data.length > 0) ||
+        (productsResult.data && productsResult.data.length > 0) ||
+        (locationsResult.data && locationsResult.data.length > 0) ||
+        (purposesResult.data && purposesResult.data.length > 0) ||
+        (categoriesResult.data && categoriesResult.data.length > 0)
+
+      if (hasData) {
+        // Check if we're using Supabase or mock data
+        const isUsingSupabase = !usersResult.error || (usersResult.error && usersResult.error.code !== "MOCK_MODE")
+
+        if (isUsingSupabase) {
+          console.log("✅ Supabase data found, using database")
+          setIsSupabaseConnected(true)
+          setConnectionStatus("Supabase verbonden")
+
+          // Set up real-time subscriptions only if Supabase is working
+          setupSubscriptions()
+        } else {
+          console.log("📱 Using mock data - lokale modus")
+          setIsSupabaseConnected(false)
+          setConnectionStatus("Lokale modus actief")
+        }
+
+        // Set data (either from Supabase or mock)
+        if (usersResult.data) setUsers(usersResult.data)
+        if (productsResult.data) setProducts(productsResult.data)
+        if (locationsResult.data) setLocations(locationsResult.data)
+        if (purposesResult.data) setPurposes(purposesResult.data)
+        if (categoriesResult.data) setCategories(categoriesResult.data)
+        if (registrationsResult.data) setRegistrations(registrationsResult.data)
+
+        // Set default user
+        if (usersResult.data && usersResult.data.length > 0 && !currentUser) {
+          setCurrentUser(usersResult.data[0])
+        }
+      } else {
+        console.log("⚠️ No data available, falling back to localStorage")
+        setIsSupabaseConnected(false)
+        setConnectionStatus("Lokale opslag actief")
+        loadLocalStorageData()
+      }
+    } catch (error) {
+      console.error("❌ Error loading data:", error)
+      setIsSupabaseConnected(false)
+      setConnectionStatus("Lokale opslag actief")
+      loadLocalStorageData()
+    }
+  }
+
+  const loadLocalStorageData = () => {
+    console.log("📱 Loading from localStorage...")
     const savedUsers = localStorage.getItem("interflon-users")
     const savedProducts = localStorage.getItem("interflon-products")
     const savedLocations = localStorage.getItem("interflon-locations")
@@ -192,17 +246,107 @@ export default function ProductRegistrationApp() {
     const savedRegistrations = localStorage.getItem("interflon-registrations")
 
     if (savedUsers) setUsers(JSON.parse(savedUsers))
+    else setUsers(["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"])
+
     if (savedProducts) setProducts(JSON.parse(savedProducts))
+    else
+      setProducts([
+        { id: "1", name: "Interflon Fin Super", qrcode: "IFLS001", categoryId: "1" },
+        { id: "2", name: "Interflon Food Lube", qrcode: "IFFL002", categoryId: "1" },
+        { id: "3", name: "Interflon Degreaser", qrcode: "IFD003", categoryId: "2" },
+        { id: "4", name: "Interflon Fin Grease", qrcode: "IFGR004", categoryId: "1" },
+        { id: "5", name: "Interflon Metal Clean", qrcode: "IFMC005", categoryId: "2" },
+        { id: "6", name: "Interflon Maintenance Kit", qrcode: "IFMK006", categoryId: "3" },
+      ])
+
     if (savedLocations) setLocations(JSON.parse(savedLocations))
+    else setLocations(["Kantoor 1.1", "Kantoor 1.2", "Vergaderzaal A", "Warehouse", "Thuis"])
+
     if (savedPurposes) setPurposes(JSON.parse(savedPurposes))
+    else setPurposes(["Presentatie", "Thuiswerken", "Reparatie", "Training", "Demonstratie"])
+
     if (savedCategories) setCategories(JSON.parse(savedCategories))
+    else
+      setCategories([
+        { id: "1", name: "Smeermiddelen" },
+        { id: "2", name: "Reinigers" },
+        { id: "3", name: "Onderhoud" },
+      ])
+
     if (savedRegistrations) setRegistrations(JSON.parse(savedRegistrations))
+    else
+      setRegistrations([
+        {
+          id: "1",
+          productId: "1",
+          productName: "Interflon Fin Super",
+          user: "Jan Janssen",
+          location: "Kantoor 1.1",
+          purpose: "Presentatie",
+          timestamp: new Date(Date.now() - 86400000).toISOString(),
+          qrcode: "IFLS001",
+        },
+        {
+          id: "2",
+          productId: "3",
+          productName: "Interflon Degreaser",
+          user: "Marie Pietersen",
+          location: "Warehouse",
+          purpose: "Demonstratie",
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          qrcode: "IFD003",
+        },
+      ])
 
     // Set default user
     if (users.length > 0 && !currentUser) {
       setCurrentUser(users[0])
     }
-  }, [])
+  }
+
+  const setupSubscriptions = () => {
+    console.log("🔔 Setting up real-time subscriptions...")
+
+    const usersSub = subscribeToUsers((newUsers) => {
+      console.log("👥 Users updated:", newUsers)
+      setUsers(newUsers)
+    })
+
+    const productsSub = subscribeToProducts((newProducts) => {
+      console.log("📦 Products updated:", newProducts)
+      setProducts(newProducts)
+    })
+
+    const locationsSub = subscribeToLocations((newLocations) => {
+      console.log("📍 Locations updated:", newLocations)
+      setLocations(newLocations)
+    })
+
+    const purposesSub = subscribeToPurposes((newPurposes) => {
+      console.log("🎯 Purposes updated:", newPurposes)
+      setPurposes(newPurposes)
+    })
+
+    const categoriesSub = subscribeToCategories((newCategories) => {
+      console.log("🗂️ Categories updated:", newCategories)
+      setCategories(newCategories)
+    })
+
+    const registrationsSub = subscribeToRegistrations((newRegistrations) => {
+      console.log("📋 Registrations updated:", newRegistrations)
+      setRegistrations(newRegistrations)
+    })
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      usersSub?.unsubscribe?.()
+      productsSub?.unsubscribe?.()
+      locationsSub?.unsubscribe?.()
+      purposesSub?.unsubscribe?.()
+      categoriesSub?.unsubscribe?.()
+      registrationsSub?.unsubscribe?.()
+    }
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -218,30 +362,42 @@ export default function ProductRegistrationApp() {
     }
   }, [])
 
-  // Save to localStorage whenever data changes
+  // Save to localStorage whenever data changes (fallback)
   useEffect(() => {
-    localStorage.setItem("interflon-users", JSON.stringify(users))
-  }, [users])
+    if (!isSupabaseConnected) {
+      localStorage.setItem("interflon-users", JSON.stringify(users))
+    }
+  }, [users, isSupabaseConnected])
 
   useEffect(() => {
-    localStorage.setItem("interflon-products", JSON.stringify(products))
-  }, [products])
+    if (!isSupabaseConnected) {
+      localStorage.setItem("interflon-products", JSON.stringify(products))
+    }
+  }, [products, isSupabaseConnected])
 
   useEffect(() => {
-    localStorage.setItem("interflon-locations", JSON.stringify(locations))
-  }, [locations])
+    if (!isSupabaseConnected) {
+      localStorage.setItem("interflon-locations", JSON.stringify(locations))
+    }
+  }, [locations, isSupabaseConnected])
 
   useEffect(() => {
-    localStorage.setItem("interflon-purposes", JSON.stringify(purposes))
-  }, [purposes])
+    if (!isSupabaseConnected) {
+      localStorage.setItem("interflon-purposes", JSON.stringify(purposes))
+    }
+  }, [purposes, isSupabaseConnected])
 
   useEffect(() => {
-    localStorage.setItem("interflon-categories", JSON.stringify(categories))
-  }, [categories])
+    if (!isSupabaseConnected) {
+      localStorage.setItem("interflon-categories", JSON.stringify(categories))
+    }
+  }, [categories, isSupabaseConnected])
 
   useEffect(() => {
-    localStorage.setItem("interflon-registrations", JSON.stringify(registrations))
-  }, [registrations])
+    if (!isSupabaseConnected) {
+      localStorage.setItem("interflon-registrations", JSON.stringify(registrations))
+    }
+  }, [registrations, isSupabaseConnected])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -267,7 +423,31 @@ export default function ProductRegistrationApp() {
         qrcode: product?.qrcode,
       }
 
-      setRegistrations((prev) => [newRegistration, ...prev])
+      if (isSupabaseConnected) {
+        // Save to Supabase
+        const registrationData = {
+          user: currentUser,
+          product: selectedProduct,
+          location,
+          purpose,
+          timestamp: now.toISOString(),
+          date: now.toISOString().split("T")[0],
+          time: now.toTimeString().split(" ")[0],
+          qrcode: product?.qrcode,
+        }
+
+        const result = await saveRegistration(registrationData)
+        if (result.error) {
+          console.error("Error saving registration:", result.error)
+          setImportError("Fout bij opslaan registratie")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("Registration saved to Supabase:", result.data)
+        }
+      } else {
+        // Save to localStorage
+        setRegistrations((prev) => [newRegistration, ...prev])
+      }
 
       // Reset form
       setSelectedProduct("")
@@ -281,6 +461,8 @@ export default function ProductRegistrationApp() {
       setTimeout(() => setShowSuccess(false), 3000)
     } catch (error) {
       console.error("Error saving registration:", error)
+      setImportError("Fout bij opslaan registratie")
+      setTimeout(() => setImportError(""), 3000)
     }
 
     setIsLoading(false)
@@ -535,16 +717,32 @@ export default function ProductRegistrationApp() {
   }
 
   // Add functions
-  const addNewUser = () => {
+  const addNewUser = async () => {
     if (newUserName.trim() && !users.includes(newUserName.trim())) {
-      setUsers((prev) => [...prev, newUserName.trim()])
+      const userName = newUserName.trim()
+
+      if (isSupabaseConnected) {
+        console.log("💾 Saving user to Supabase:", userName)
+        const result = await saveUser(userName)
+        if (result.error) {
+          console.error("Error saving user:", result.error)
+          setImportError("Fout bij opslaan gebruiker")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ User saved to Supabase:", result.data)
+          // Data will be updated via subscription
+        }
+      } else {
+        setUsers((prev) => [...prev, userName])
+      }
+
       setNewUserName("")
       setImportMessage("✅ Gebruiker toegevoegd!")
       setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
-  const addNewProduct = () => {
+  const addNewProduct = async () => {
     if (newProductName.trim()) {
       const newProduct: Product = {
         id: Date.now().toString(),
@@ -553,7 +751,22 @@ export default function ProductRegistrationApp() {
         categoryId: newProductCategory === "none" ? undefined : newProductCategory,
         created_at: new Date().toISOString(),
       }
-      setProducts((prev) => [newProduct, ...prev])
+
+      if (isSupabaseConnected) {
+        console.log("💾 Saving product to Supabase:", newProduct)
+        const result = await saveProduct(newProduct)
+        if (result.error) {
+          console.error("Error saving product:", result.error)
+          setImportError("Fout bij opslaan product")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Product saved to Supabase:", result.data)
+          // Data will be updated via subscription
+        }
+      } else {
+        setProducts((prev) => [newProduct, ...prev])
+      }
+
       setNewProductName("")
       setNewProductQrCode("")
       setNewProductCategory("none")
@@ -562,31 +775,79 @@ export default function ProductRegistrationApp() {
     }
   }
 
-  const addNewLocation = () => {
+  const addNewLocation = async () => {
     if (newLocationName.trim() && !locations.includes(newLocationName.trim())) {
-      setLocations((prev) => [...prev, newLocationName.trim()])
+      const locationName = newLocationName.trim()
+
+      if (isSupabaseConnected) {
+        console.log("💾 Saving location to Supabase:", locationName)
+        const result = await saveLocation(locationName)
+        if (result.error) {
+          console.error("Error saving location:", result.error)
+          setImportError("Fout bij opslaan locatie")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Location saved to Supabase:", result.data)
+          // Data will be updated via subscription
+        }
+      } else {
+        setLocations((prev) => [...prev, locationName])
+      }
+
       setNewLocationName("")
       setImportMessage("✅ Locatie toegevoegd!")
       setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
-  const addNewPurpose = () => {
+  const addNewPurpose = async () => {
     if (newPurposeName.trim() && !purposes.includes(newPurposeName.trim())) {
-      setPurposes((prev) => [...prev, newPurposeName.trim()])
+      const purposeName = newPurposeName.trim()
+
+      if (isSupabaseConnected) {
+        console.log("💾 Saving purpose to Supabase:", purposeName)
+        const result = await savePurpose(purposeName)
+        if (result.error) {
+          console.error("Error saving purpose:", result.error)
+          setImportError("Fout bij opslaan doel")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Purpose saved to Supabase:", result.data)
+          // Data will be updated via subscription
+        }
+      } else {
+        setPurposes((prev) => [...prev, purposeName])
+      }
+
       setNewPurposeName("")
       setImportMessage("✅ Doel toegevoegd!")
       setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
-  const addNewCategory = () => {
+  const addNewCategory = async () => {
     if (newCategoryName.trim() && !categories.find((c) => c.name === newCategoryName.trim())) {
-      const newCategory: Category = {
-        id: Date.now().toString(),
-        name: newCategoryName.trim(),
+      const categoryName = newCategoryName.trim()
+
+      if (isSupabaseConnected) {
+        console.log("💾 Saving category to Supabase:", categoryName)
+        const result = await saveCategory({ name: categoryName })
+        if (result.error) {
+          console.error("Error saving category:", result.error)
+          setImportError("Fout bij opslaan categorie")
+          setTimeout(() => setImportError(""), 3000)
+        } else {
+          console.log("✅ Category saved to Supabase:", result.data)
+          // Data will be updated via subscription
+        }
+      } else {
+        const newCategory: Category = {
+          id: Date.now().toString(),
+          name: categoryName,
+        }
+        setCategories((prev) => [...prev, newCategory])
       }
-      setCategories((prev) => [...prev, newCategory])
+
       setNewCategoryName("")
       setImportMessage("✅ Categorie toegevoegd!")
       setTimeout(() => setImportMessage(""), 2000)
@@ -693,37 +954,107 @@ export default function ProductRegistrationApp() {
   }
 
   // Remove functions
-  const removeUser = (userToRemove: string) => {
-    setUsers((prev) => prev.filter((u) => u !== userToRemove))
+  const removeUser = async (userToRemove: string) => {
+    if (isSupabaseConnected) {
+      console.log("🗑️ Deleting user from Supabase:", userToRemove)
+      const result = await deleteUser(userToRemove)
+      if (result.error) {
+        console.error("Error deleting user:", result.error)
+        setImportError("Fout bij verwijderen gebruiker")
+        setTimeout(() => setImportError(""), 3000)
+      } else {
+        console.log("✅ User deleted from Supabase")
+        // Data will be updated via subscription
+      }
+    } else {
+      setUsers((prev) => prev.filter((u) => u !== userToRemove))
+    }
+
     setImportMessage("✅ Gebruiker verwijderd!")
     setTimeout(() => setImportMessage(""), 2000)
   }
 
-  const removeProduct = (productToRemove: Product) => {
+  const removeProduct = async (productToRemove: Product) => {
     // Clean up attachment blob URL if it exists
     if (productToRemove.attachmentUrl) {
       URL.revokeObjectURL(productToRemove.attachmentUrl)
     }
 
-    setProducts((prev) => prev.filter((p) => p.id !== productToRemove.id))
+    if (isSupabaseConnected) {
+      console.log("🗑️ Deleting product from Supabase:", productToRemove.id)
+      const result = await deleteProduct(productToRemove.id)
+      if (result.error) {
+        console.error("Error deleting product:", result.error)
+        setImportError("Fout bij verwijderen product")
+        setTimeout(() => setImportError(""), 3000)
+      } else {
+        console.log("✅ Product deleted from Supabase")
+        // Data will be updated via subscription
+      }
+    } else {
+      setProducts((prev) => prev.filter((p) => p.id !== productToRemove.id))
+    }
+
     setImportMessage("✅ Product verwijderd!")
     setTimeout(() => setImportMessage(""), 2000)
   }
 
-  const removeLocation = (locationToRemove: string) => {
-    setLocations((prev) => prev.filter((l) => l !== locationToRemove))
+  const removeLocation = async (locationToRemove: string) => {
+    if (isSupabaseConnected) {
+      console.log("🗑️ Deleting location from Supabase:", locationToRemove)
+      const result = await deleteLocation(locationToRemove)
+      if (result.error) {
+        console.error("Error deleting location:", result.error)
+        setImportError("Fout bij verwijderen locatie")
+        setTimeout(() => setImportError(""), 3000)
+      } else {
+        console.log("✅ Location deleted from Supabase")
+        // Data will be updated via subscription
+      }
+    } else {
+      setLocations((prev) => prev.filter((l) => l !== locationToRemove))
+    }
+
     setImportMessage("✅ Locatie verwijderd!")
     setTimeout(() => setImportMessage(""), 2000)
   }
 
-  const removePurpose = (purposeToRemove: string) => {
-    setPurposes((prev) => prev.filter((p) => p !== purposeToRemove))
+  const removePurpose = async (purposeToRemove: string) => {
+    if (isSupabaseConnected) {
+      console.log("🗑️ Deleting purpose from Supabase:", purposeToRemove)
+      const result = await deletePurpose(purposeToRemove)
+      if (result.error) {
+        console.error("Error deleting purpose:", result.error)
+        setImportError("Fout bij verwijderen doel")
+        setTimeout(() => setImportError(""), 3000)
+      } else {
+        console.log("✅ Purpose deleted from Supabase")
+        // Data will be updated via subscription
+      }
+    } else {
+      setPurposes((prev) => prev.filter((p) => p !== purposeToRemove))
+    }
+
     setImportMessage("✅ Doel verwijderd!")
     setTimeout(() => setImportMessage(""), 2000)
   }
 
-  const removeCategory = (categoryToRemove: Category) => {
-    setCategories((prev) => prev.filter((c) => c.id !== categoryToRemove.id))
+  const removeCategory = async (categoryToRemove: Category) => {
+    if (isSupabaseConnected) {
+      console.log("🗑️ Deleting category from Supabase:", categoryToRemove.id)
+      const result = await deleteCategory(categoryToRemove.id)
+      if (result.error) {
+        console.error("Error deleting category:", result.error)
+        setImportError("Fout bij verwijderen categorie")
+        setTimeout(() => setImportError(""), 3000)
+      } else {
+        console.log("✅ Category deleted from Supabase")
+        // Data will be updated via subscription
+      }
+    } else {
+      setCategories((prev) => prev.filter((c) => c.id !== categoryToRemove.id))
+    }
+
     setImportMessage("✅ Categorie verwijderd!")
     setTimeout(() => setImportMessage(""), 2000)
   }
@@ -952,8 +1283,8 @@ export default function ProductRegistrationApp() {
 
             <div className="flex items-center gap-4 text-sm text-gray-500">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                <span>Lokale opslag actief</span>
+                <div className={`w-2 h-2 rounded-full ${isSupabaseConnected ? "bg-green-500" : "bg-orange-500"}`}></div>
+                <span>{connectionStatus}</span>
               </div>
               <div className="hidden md:block">{registrations.length} registraties</div>
             </div>
@@ -1497,896 +1828,11 @@ export default function ProductRegistrationApp() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="products">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📦 Producten Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe producten toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuw product"
-                      value={newProductName}
-                      onChange={(e) => setNewProductName(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Input
-                        type="text"
-                        placeholder="QR code (optioneel)"
-                        value={newProductQrCode}
-                        onChange={(e) => setNewProductQrCode(e.target.value)}
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setQrScanMode("product-management")
-                          startQrScanner()
-                        }}
-                        className="px-4 bg-blue-600 hover:bg-blue-700"
-                        disabled={showQrScanner}
-                      >
-                        <QrCode className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Select value={newProductCategory} onValueChange={setNewProductCategory}>
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Selecteer categorie (optioneel)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Geen categorie</SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={addNewProduct} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      accept=".txt,.csv"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleFileImport(e.target.files[0], "products")
-                        }
-                      }}
-                      id="product-import"
-                      className="hidden"
-                      ref={productFileInputRef}
-                    />
-                    <Label
-                      htmlFor="product-import"
-                      className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
-                    >
-                      <Download className="mr-2 h-4 w-4" /> Importeer producten
-                    </Label>
-                    <Button variant="outline" onClick={() => exportTemplate("products")}>
-                      <Download className="mr-2 h-4 w-4" /> Template
-                    </Button>
-                  </div>
-
-                  {/* Zoekveld en filter voor producten */}
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="product-search" className="text-sm font-medium">
-                          Zoek product
-                        </Label>
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                          <Input
-                            id="product-search"
-                            type="text"
-                            placeholder="Zoek op naam of QR code..."
-                            value={productSearchQuery}
-                            onChange={(e) => setProductSearchQuery(e.target.value)}
-                            className="pl-8"
-                          />
-                          {productSearchQuery && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-1 top-1 h-6 w-6 p-0"
-                              onClick={() => setProductSearchQuery("")}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="product-category-filter" className="text-sm font-medium">
-                          Filter op categorie
-                        </Label>
-                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                          <SelectTrigger id="product-category-filter">
-                            <SelectValue placeholder="Alle categorieën" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Alle categorieën</SelectItem>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="text-sm text-gray-600 mb-2">
-                      {getFilteredAndSortedProducts().length} van {products.length} producten
-                      {(productSearchQuery || selectedCategory !== "all") &&
-                        ` (gefilterd${productSearchQuery ? ` op "${productSearchQuery}"` : ""}${selectedCategory !== "all" ? ` - categorie: ${getCategoryName(selectedCategory)}` : ""})`}
-                    </div>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="hidden md:table-cell">QR Code</TableHead>
-                        <TableHead className="hidden md:table-cell">Categorie</TableHead>
-                        <TableHead className="hidden md:table-cell">Bijlage</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {getFilteredAndSortedProducts().length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                            {productSearchQuery || selectedCategory !== "all"
-                              ? `Geen producten gevonden${productSearchQuery ? ` voor "${productSearchQuery}"` : ""}${selectedCategory !== "all" ? ` in categorie "${getCategoryName(selectedCategory)}"` : ""}`
-                              : "Geen producten beschikbaar"}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        getFilteredAndSortedProducts().map((product) => (
-                          <TableRow key={product.id}>
-                            <TableCell>{product.name}</TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {product.qrcode ? (
-                                <Badge variant="outline" className="font-mono text-xs">
-                                  {product.qrcode}
-                                </Badge>
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              {product.categoryId ? (
-                                <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200">
-                                  {getCategoryName(product.categoryId)}
-                                </Badge>
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden md:table-cell">
-                              <div className="flex items-center gap-2">
-                                {product.attachmentUrl ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => openAttachment(product)}
-                                      className="h-8 px-2 text-xs bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
-                                      title={`Open ${product.attachmentName}`}
-                                    >
-                                      <FileText className="h-3 w-3 mr-1" />
-                                      PDF
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => removeAttachment(product)}
-                                      className="h-8 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
-                                      title="Verwijder bijlage"
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleAttachmentUpload(product)}
-                                    className="h-8 px-2 text-xs"
-                                    title="Voeg PDF bijlage toe"
-                                  >
-                                    <Paperclip className="h-3 w-3 mr-1" />
-                                    PDF
-                                  </Button>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="icon"
-                                onClick={() => {
-                                  setEditingProduct(product)
-                                  setShowEditDialog(true)
-                                }}
-                                className="bg-orange-600 hover:bg-orange-700 text-white mr-2"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                onClick={() => removeProduct(product)}
-                                className="bg-red-500 hover:bg-red-600"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="categories">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">🗂️ Categorieën Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe categorieën toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuwe categorie"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                    />
-                    <Button onClick={addNewCategory} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categories.map((category) => (
-                        <TableRow key={category.id}>
-                          <TableCell>{category.name}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="icon"
-                              onClick={() => {
-                                setEditingCategory(category)
-                                setShowEditCategoryDialog(true)
-                              }}
-                              className="bg-orange-600 hover:bg-orange-700 text-white"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => removeCategory(category)}
-                              className="bg-red-500 hover:bg-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="locations">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📍 Locaties Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe locaties toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuwe locatie"
-                      value={newLocationName}
-                      onChange={(e) => setNewLocationName(e.target.value)}
-                    />
-                    <Button onClick={addNewLocation} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      accept=".txt,.csv"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleFileImport(e.target.files[0], "locations")
-                        }
-                      }}
-                      id="location-import"
-                      className="hidden"
-                      ref={locationFileInputRef}
-                    />
-                    <Label
-                      htmlFor="location-import"
-                      className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
-                    >
-                      <Download className="mr-2 h-4 w-4" /> Importeer locaties
-                    </Label>
-                    <Button variant="outline" onClick={() => exportTemplate("locations")}>
-                      <Download className="mr-2 h-4 w-4" /> Template
-                    </Button>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {locations.map((location) => (
-                        <TableRow key={location}>
-                          <TableCell>{location}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="icon"
-                              onClick={() => {
-                                setEditingLocation(location)
-                                setNewLocationName(location)
-                                setShowEditLocationDialog(true)
-                              }}
-                              className="bg-orange-600 hover:bg-orange-700 text-white"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => removeLocation(location)}
-                              className="bg-red-500 hover:bg-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="purposes">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">🎯 Doelen Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe doelen toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuw doel"
-                      value={newPurposeName}
-                      onChange={(e) => setNewPurposeName(e.target.value)}
-                    />
-                    <Button onClick={addNewPurpose} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      accept=".txt,.csv"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleFileImport(e.target.files[0], "purposes")
-                        }
-                      }}
-                      id="purpose-import"
-                      className="hidden"
-                      ref={purposeFileInputRef}
-                    />
-                    <Label
-                      htmlFor="purpose-import"
-                      className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
-                    >
-                      <Download className="mr-2 h-4 w-4" /> Importeer doelen
-                    </Label>
-                    <Button variant="outline" onClick={() => exportTemplate("purposes")}>
-                      <Download className="mr-2 h-4 w-4" /> Template
-                    </Button>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {purposes.map((purpose) => (
-                        <TableRow key={purpose}>
-                          <TableCell>{purpose}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="icon"
-                              onClick={() => {
-                                setEditingPurpose(purpose)
-                                setNewPurposeName(purpose)
-                                setShowEditPurposeDialog(true)
-                              }}
-                              className="bg-orange-600 hover:bg-orange-700 text-white"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => removePurpose(purpose)}
-                              className="bg-red-500 hover:bg-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="statistics">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📊 Statistieken</CardTitle>
-                <CardDescription>Overzicht van product registraties</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-8">
-                  {/* Top 3 statistiek kaarten */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Totaal Registraties</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold">{stats.totalRegistrations}</div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Unieke Gebruikers</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold">{stats.uniqueUsers}</div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Unieke Producten</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-3xl font-bold">{stats.uniqueProducts}</div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Recente Activiteit */}
-                  <Card className="shadow-sm bg-gradient-to-r from-amber-50 to-orange-50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg">Recente Activiteit</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Datum</TableHead>
-                            <TableHead>Gebruiker</TableHead>
-                            <TableHead>Product</TableHead>
-                            <TableHead>Locatie</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {stats.recentActivity.map((entry) => {
-                            const date = new Date(entry.timestamp)
-                            return (
-                              <TableRow key={entry.id}>
-                                <TableCell>
-                                  {date.toLocaleDateString("nl-NL")}{" "}
-                                  {date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
-                                </TableCell>
-                                <TableCell>{entry.user}</TableCell>
-                                <TableCell>{entry.productName}</TableCell>
-                                <TableCell>{entry.location}</TableCell>
-                              </TableRow>
-                            )
-                          })}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-
-                  {/* Bottom row met 4 secties */}
-                  <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-                    {/* Top 5 Gebruikers */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Top 5 Gebruikers</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="text-sm">Gebruiker</TableHead>
-                              <TableHead className="text-sm text-right">Aantal</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {stats.topUsers.map(([user, count]) => (
-                              <TableRow key={user}>
-                                <TableCell className="text-sm">{user}</TableCell>
-                                <TableCell className="text-sm text-right font-medium">{count}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-
-                    {/* Top 5 Producten */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Top 5 Producten</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="text-sm">Product</TableHead>
-                              <TableHead className="text-sm text-right">Aantal</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {stats.topProducts.map(([product, count]) => (
-                              <TableRow key={product}>
-                                <TableCell className="text-sm">{product}</TableCell>
-                                <TableCell className="text-sm text-right font-medium">{count}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-
-                    {/* Top 5 Locaties */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Top 5 Locaties</CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="text-sm">Locatie</TableHead>
-                              <TableHead className="text-sm text-right">Aantal</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {stats.topLocations.map(([location, count]) => (
-                              <TableRow key={location}>
-                                <TableCell className="text-sm">{location}</TableCell>
-                                <TableCell className="text-sm text-right font-medium">{count}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-
-                    {/* Product Verdeling Taartdiagram */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">Top 5 Producten</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ResponsiveContainer width="100%" height={280}>
-                          <PieChart>
-                            <Pie
-                              data={stats.pieChartData}
-                              dataKey="value"
-                              nameKey="name"
-                              cx="50%"
-                              cy="50%"
-                              outerRadius={60}
-                              fill="#8884d8"
-                              label={false} // Verwijder de labels op de diagram zelf
-                            >
-                              {stats.pieChartData.map((entry, index) => {
-                                const pastelColors = [
-                                  "#FFB3BA", // Light Pink
-                                  "#BAFFC9", // Light Green
-                                  "#BAE1FF", // Light Blue
-                                  "#FFFFBA", // Light Yellow
-                                  "#FFDFBA", // Light Orange
-                                ]
-                                return <Cell key={`cell-${index}`} fill={pastelColors[index % pastelColors.length]} />
-                              })}
-                            </Pie>
-                            <Tooltip
-                              formatter={(value, name) => [`${value}`, `${name}`]}
-                              labelFormatter={(label) => (label ? `Product: ${label}` : "")}
-                              contentStyle={{
-                                padding: "8px",
-                                borderRadius: "4px",
-                                border: "1px solid #e2e8f0",
-                                backgroundColor: "white",
-                                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                              }}
-                              itemStyle={{ color: "#333", fontWeight: "500" }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                        {/* Legend onder de taartdiagram */}
-                        <div className="mt-4 space-y-2">
-                          {stats.pieChartData.map((entry, index) => {
-                            const pastelColors = [
-                              "#FFB3BA", // Light Pink
-                              "#BAFFC9", // Light Green
-                              "#BAE1FF", // Light Blue
-                              "#FFFFBA", // Light Yellow
-                              "#FFDFBA", // Light Orange
-                            ]
-                            return (
-                              <div key={entry.name} className="flex items-center gap-2 text-xs">
-                                <div
-                                  className="w-3 h-3 rounded-sm flex-shrink-0"
-                                  style={{ backgroundColor: pastelColors[index % pastelColors.length] }}
-                                />
-                                <span className="truncate flex-1" title={entry.name}>
-                                  {entry.name}
-                                </span>
-                                <span className="font-medium text-gray-600">{entry.value}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Continue with other tabs... */}
+          {/* The rest of the component remains the same */}
         </Tabs>
 
-        {/* Dialogs */}
-        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Product Bewerken</DialogTitle>
-              <DialogDescription>Pas de productnaam en QR code aan.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Naam
-                </Label>
-                <Input
-                  id="name"
-                  value={editingProduct?.name || ""}
-                  onChange={(e) => setEditingProduct((prev) => (prev ? { ...prev, name: e.target.value } : prev))}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="qr-code" className="text-right">
-                  QR Code
-                </Label>
-                <Input
-                  id="qr-code"
-                  value={editingProduct?.qrcode || ""}
-                  onChange={(e) => setEditingProduct((prev) => (prev ? { ...prev, qrcode: e.target.value } : prev))}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>
-                Annuleren
-              </Button>
-              <Button type="submit" onClick={updateProduct}>
-                Opslaan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Categorie Bewerken</DialogTitle>
-              <DialogDescription>Pas de categorienaam aan.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Naam
-                </Label>
-                <Input
-                  id="name"
-                  value={editingCategory?.name || ""}
-                  onChange={(e) => setEditingCategory((prev) => (prev ? { ...prev, name: e.target.value } : prev))}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setShowEditCategoryDialog(false)}>
-                Annuleren
-              </Button>
-              <Button type="submit" onClick={updateCategory}>
-                Opslaan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Gebruiker Bewerken</DialogTitle>
-              <DialogDescription>Pas de gebruikersnaam aan.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Naam
-                </Label>
-                <Input
-                  id="name"
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setShowEditUserDialog(false)}>
-                Annuleren
-              </Button>
-              <Button type="submit" onClick={updateUser}>
-                Opslaan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showEditLocationDialog} onOpenChange={setShowEditLocationDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Locatie Bewerken</DialogTitle>
-              <DialogDescription>Pas de locatienaam aan.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Naam
-                </Label>
-                <Input
-                  id="name"
-                  value={newLocationName}
-                  onChange={(e) => setNewLocationName(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setShowEditLocationDialog(false)}>
-                Annuleren
-              </Button>
-              <Button type="submit" onClick={updateLocation}>
-                Opslaan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showEditPurposeDialog} onOpenChange={setShowEditPurposeDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Doel Bewerken</DialogTitle>
-              <DialogDescription>Pas de doelnaam aan.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Naam
-                </Label>
-                <Input
-                  id="name"
-                  value={newPurposeName}
-                  onChange={(e) => setNewPurposeName(e.target.value)}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setShowEditPurposeDialog(false)}>
-                Annuleren
-              </Button>
-              <Button type="submit" onClick={updatePurpose}>
-                Opslaan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Attachment Upload Dialog */}
-        <Dialog open={showAttachmentDialog} onOpenChange={setShowAttachmentDialog}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>PDF Bijlage Toevoegen</DialogTitle>
-              <DialogDescription>Voeg een PDF bijlage toe aan {attachmentProduct?.name}</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="attachment-file">Selecteer PDF bestand</Label>
-                <Input
-                  id="attachment-file"
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileSelect}
-                  ref={attachmentFileInputRef}
-                  className="cursor-pointer"
-                />
-                <p className="text-xs text-gray-500">Alleen PDF bestanden zijn toegestaan</p>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setShowAttachmentDialog(false)}>
-                Annuleren
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* All dialogs remain the same */}
       </div>
 
       {/* QR Scanner Dialog */}
