@@ -83,7 +83,6 @@ export default function ProductRegistrationApp() {
   // Connection state
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState("Controleren...")
-  const [debugInfo, setDebugInfo] = useState<string[]>([])
 
   // Data arrays
   const [users, setUsers] = useState<string[]>([])
@@ -147,25 +146,18 @@ export default function ProductRegistrationApp() {
   const [attachmentProduct, setAttachmentProduct] = useState<Product | null>(null)
   const attachmentFileInputRef = useRef<HTMLInputElement>(null)
 
-  // Debug function
-  const addDebugInfo = (message: string) => {
-    console.log(`[DEBUG] ${message}`)
-    setDebugInfo((prev) => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${message}`])
-  }
-
   // Load data on component mount
   useEffect(() => {
     loadAllData()
   }, [])
 
   const loadAllData = async () => {
-    addDebugInfo("🔄 Starting data load...")
+    console.log("🔄 Loading data from Supabase...")
     setConnectionStatus("Verbinden met database...")
 
     try {
       // Check if Supabase is configured first
       const supabaseConfigured = isSupabaseConfigured()
-      addDebugInfo(`Supabase configured: ${supabaseConfigured}`)
 
       const [usersResult, productsResult, locationsResult, purposesResult, categoriesResult, registrationsResult] =
         await Promise.all([
@@ -177,21 +169,21 @@ export default function ProductRegistrationApp() {
           fetchRegistrations(),
         ])
 
-      addDebugInfo(
-        `Data results: Users(${usersResult.data?.length || 0}), Products(${productsResult.data?.length || 0}), Categories(${categoriesResult.data?.length || 0})`,
-      )
-
-      // Log any errors
-      if (usersResult.error) addDebugInfo(`Users error: ${JSON.stringify(usersResult.error)}`)
-      if (productsResult.error) addDebugInfo(`Products error: ${JSON.stringify(productsResult.error)}`)
-      if (categoriesResult.error) addDebugInfo(`Categories error: ${JSON.stringify(categoriesResult.error)}`)
+      console.log("📊 Data loaded:", {
+        users: usersResult.data?.length || 0,
+        products: productsResult.data?.length || 0,
+        locations: locationsResult.data?.length || 0,
+        purposes: purposesResult.data?.length || 0,
+        categories: categoriesResult.data?.length || 0,
+        registrations: registrationsResult.data?.length || 0,
+      })
 
       // Check if we have a real Supabase connection (not mock mode)
       const hasRealSupabaseConnection =
         supabaseConfigured && (!usersResult.error || (usersResult.error && usersResult.error.code !== "MOCK_MODE"))
 
       if (hasRealSupabaseConnection) {
-        addDebugInfo("✅ Real Supabase connection detected")
+        console.log("✅ Supabase connected successfully")
         setIsSupabaseConnected(true)
         setConnectionStatus("Supabase verbonden")
 
@@ -203,24 +195,21 @@ export default function ProductRegistrationApp() {
         setCategories(categoriesResult.data || [])
         setRegistrations(registrationsResult.data || [])
 
-        addDebugInfo(`Data set: Users(${usersResult.data?.length || 0}), Products(${productsResult.data?.length || 0})`)
-
         // Set default user if available
         if (usersResult.data && usersResult.data.length > 0) {
           setCurrentUser(usersResult.data[0])
-          addDebugInfo(`Default user set: ${usersResult.data[0]}`)
         }
 
         // Set up real-time subscriptions
         setupSubscriptions()
       } else {
-        addDebugInfo("⚠️ No real Supabase connection, using localStorage")
+        console.log("⚠️ Supabase connection failed, using localStorage")
         setIsSupabaseConnected(false)
         setConnectionStatus("Lokale opslag actief")
         loadLocalStorageData()
       }
     } catch (error) {
-      addDebugInfo(`❌ Error loading data: ${error}`)
+      console.error("❌ Error loading data:", error)
       setIsSupabaseConnected(false)
       setConnectionStatus("Lokale opslag actief")
       loadLocalStorageData()
@@ -228,7 +217,7 @@ export default function ProductRegistrationApp() {
   }
 
   const loadLocalStorageData = () => {
-    addDebugInfo("📱 Loading from localStorage...")
+    console.log("📱 Loading from localStorage...")
     const savedUsers = localStorage.getItem("interflon-users")
     const savedProducts = localStorage.getItem("interflon-products")
     const savedLocations = localStorage.getItem("interflon-locations")
@@ -239,17 +228,14 @@ export default function ProductRegistrationApp() {
     if (savedUsers) {
       const parsedUsers = JSON.parse(savedUsers)
       setUsers(parsedUsers)
-      addDebugInfo(`Loaded ${parsedUsers.length} users from localStorage`)
     } else {
       const defaultUsers = ["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"]
       setUsers(defaultUsers)
-      addDebugInfo(`Set ${defaultUsers.length} default users`)
     }
 
     if (savedProducts) {
       const parsedProducts = JSON.parse(savedProducts)
       setProducts(parsedProducts)
-      addDebugInfo(`Loaded ${parsedProducts.length} products from localStorage`)
     } else {
       const defaultProducts = [
         { id: "1", name: "Interflon Fin Super", qrcode: "IFLS001", categoryId: "1" },
@@ -260,7 +246,6 @@ export default function ProductRegistrationApp() {
         { id: "6", name: "Interflon Maintenance Kit", qrcode: "IFMK006", categoryId: "3" },
       ]
       setProducts(defaultProducts)
-      addDebugInfo(`Set ${defaultProducts.length} default products`)
     }
 
     if (savedLocations) {
@@ -305,35 +290,35 @@ export default function ProductRegistrationApp() {
   }
 
   const setupSubscriptions = () => {
-    addDebugInfo("🔔 Setting up real-time subscriptions...")
+    console.log("��� Setting up real-time subscriptions...")
 
     const usersSub = subscribeToUsers((newUsers) => {
-      addDebugInfo(`👥 Users updated via subscription: ${newUsers.length}`)
+      console.log("👥 Users updated:", newUsers.length)
       setUsers(newUsers)
     })
 
     const productsSub = subscribeToProducts((newProducts) => {
-      addDebugInfo(`📦 Products updated via subscription: ${newProducts.length}`)
+      console.log("📦 Products updated:", newProducts.length)
       setProducts(newProducts)
     })
 
     const locationsSub = subscribeToLocations((newLocations) => {
-      addDebugInfo(`📍 Locations updated via subscription: ${newLocations.length}`)
+      console.log("📍 Locations updated:", newLocations.length)
       setLocations(newLocations)
     })
 
     const purposesSub = subscribeToPurposes((newPurposes) => {
-      addDebugInfo(`🎯 Purposes updated via subscription: ${newPurposes.length}`)
+      console.log("🎯 Purposes updated:", newPurposes.length)
       setPurposes(newPurposes)
     })
 
     const categoriesSub = subscribeToCategories((newCategories) => {
-      addDebugInfo(`🗂️ Categories updated via subscription: ${newCategories.length}`)
+      console.log("🗂️ Categories updated:", newCategories.length)
       setCategories(newCategories)
     })
 
     const registrationsSub = subscribeToRegistrations((newRegistrations) => {
-      addDebugInfo(`📋 Registrations updated via subscription: ${newRegistrations.length}`)
+      console.log("📋 Registrations updated:", newRegistrations.length)
       setRegistrations(newRegistrations)
     })
 
@@ -407,7 +392,6 @@ export default function ProductRegistrationApp() {
     }
 
     setIsLoading(true)
-    addDebugInfo("💾 Starting registration save...")
 
     try {
       const now = new Date()
@@ -436,17 +420,15 @@ export default function ProductRegistrationApp() {
           qrcode: product?.qrcode,
         }
 
-        addDebugInfo("Saving registration to Supabase...")
         const result = await saveRegistration(registrationData)
         if (result.error) {
-          addDebugInfo(`Registration save error: ${JSON.stringify(result.error)}`)
+          console.error("Error saving registration:", result.error)
           setImportError("Fout bij opslaan registratie")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          addDebugInfo("✅ Registration saved to Supabase successfully")
+          console.log("✅ Registration saved to Supabase")
         }
       } else {
-        addDebugInfo("Saving registration to localStorage...")
         setRegistrations((prev) => [newRegistration, ...prev])
       }
 
@@ -461,7 +443,7 @@ export default function ProductRegistrationApp() {
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 3000)
     } catch (error) {
-      addDebugInfo(`❌ Registration save error: ${error}`)
+      console.error("Error saving registration:", error)
       setImportError("Fout bij opslaan registratie")
       setTimeout(() => setImportError(""), 3000)
     }
@@ -527,30 +509,26 @@ export default function ProductRegistrationApp() {
   const addNewUser = async () => {
     if (newUserName.trim() && !users.includes(newUserName.trim())) {
       const userName = newUserName.trim()
-      addDebugInfo(`💾 Adding new user: ${userName}`)
 
       if (isSupabaseConnected) {
-        addDebugInfo("Saving user to Supabase...")
+        console.log("💾 Saving user to Supabase:", userName)
         const result = await saveUser(userName)
         if (result.error) {
-          addDebugInfo(`User save error: ${JSON.stringify(result.error)}`)
+          console.error("Error saving user:", result.error)
           setImportError("Fout bij opslaan gebruiker")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          addDebugInfo("✅ User saved to Supabase successfully")
+          console.log("✅ User saved to Supabase")
           // Data should update via subscription, but let's also update locally as fallback
           setUsers((prev) => [...prev, userName])
         }
       } else {
-        addDebugInfo("Saving user to localStorage...")
         setUsers((prev) => [...prev, userName])
       }
 
       setNewUserName("")
       setImportMessage("✅ Gebruiker toegevoegd!")
       setTimeout(() => setImportMessage(""), 2000)
-    } else {
-      addDebugInfo(`User add failed: empty name or duplicate`)
     }
   }
 
@@ -564,22 +542,19 @@ export default function ProductRegistrationApp() {
         created_at: new Date().toISOString(),
       }
 
-      addDebugInfo(`💾 Adding new product: ${newProduct.name}`)
-
       if (isSupabaseConnected) {
-        addDebugInfo("Saving product to Supabase...")
+        console.log("💾 Saving product to Supabase:", newProduct)
         const result = await saveProduct(newProduct)
         if (result.error) {
-          addDebugInfo(`Product save error: ${JSON.stringify(result.error)}`)
+          console.error("Error saving product:", result.error)
           setImportError("Fout bij opslaan product")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          addDebugInfo("✅ Product saved to Supabase successfully")
+          console.log("✅ Product saved to Supabase")
           // Data should update via subscription, but let's also update locally as fallback
           setProducts((prev) => [newProduct, ...prev])
         }
       } else {
-        addDebugInfo("Saving product to localStorage...")
         setProducts((prev) => [newProduct, ...prev])
       }
 
@@ -594,21 +569,19 @@ export default function ProductRegistrationApp() {
   const addNewLocation = async () => {
     if (newLocationName.trim() && !locations.includes(newLocationName.trim())) {
       const locationName = newLocationName.trim()
-      addDebugInfo(`💾 Adding new location: ${locationName}`)
 
       if (isSupabaseConnected) {
-        addDebugInfo("Saving location to Supabase...")
+        console.log("💾 Saving location to Supabase:", locationName)
         const result = await saveLocation(locationName)
         if (result.error) {
-          addDebugInfo(`Location save error: ${JSON.stringify(result.error)}`)
+          console.error("Error saving location:", result.error)
           setImportError("Fout bij opslaan locatie")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          addDebugInfo("✅ Location saved to Supabase successfully")
+          console.log("✅ Location saved to Supabase")
           setLocations((prev) => [...prev, locationName])
         }
       } else {
-        addDebugInfo("Saving location to localStorage...")
         setLocations((prev) => [...prev, locationName])
       }
 
@@ -621,21 +594,19 @@ export default function ProductRegistrationApp() {
   const addNewPurpose = async () => {
     if (newPurposeName.trim() && !purposes.includes(newPurposeName.trim())) {
       const purposeName = newPurposeName.trim()
-      addDebugInfo(`💾 Adding new purpose: ${purposeName}`)
 
       if (isSupabaseConnected) {
-        addDebugInfo("Saving purpose to Supabase...")
+        console.log("💾 Saving purpose to Supabase:", purposeName)
         const result = await savePurpose(purposeName)
         if (result.error) {
-          addDebugInfo(`Purpose save error: ${JSON.stringify(result.error)}`)
+          console.error("Error saving purpose:", result.error)
           setImportError("Fout bij opslaan doel")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          addDebugInfo("✅ Purpose saved to Supabase successfully")
+          console.log("✅ Purpose saved to Supabase")
           setPurposes((prev) => [...prev, purposeName])
         }
       } else {
-        addDebugInfo("Saving purpose to localStorage...")
         setPurposes((prev) => [...prev, purposeName])
       }
 
@@ -648,21 +619,19 @@ export default function ProductRegistrationApp() {
   const addNewCategory = async () => {
     if (newCategoryName.trim() && !categories.find((c) => c.name === newCategoryName.trim())) {
       const categoryName = newCategoryName.trim()
-      addDebugInfo(`💾 Adding new category: ${categoryName}`)
 
       if (isSupabaseConnected) {
-        addDebugInfo("Saving category to Supabase...")
+        console.log("💾 Saving category to Supabase:", categoryName)
         const result = await saveCategory({ name: categoryName })
         if (result.error) {
-          addDebugInfo(`Category save error: ${JSON.stringify(result.error)}`)
+          console.error("Error saving category:", result.error)
           setImportError("Fout bij opslaan categorie")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          addDebugInfo("✅ Category saved to Supabase successfully")
+          console.log("✅ Category saved to Supabase")
           setCategories((prev) => [...prev, result.data])
         }
       } else {
-        addDebugInfo("Saving category to localStorage...")
         const newCategory: Category = {
           id: Date.now().toString(),
           name: categoryName,
@@ -678,16 +647,15 @@ export default function ProductRegistrationApp() {
 
   // Remove functions
   const removeUser = async (userToRemove: string) => {
-    addDebugInfo(`🗑️ Removing user: ${userToRemove}`)
-
     if (isSupabaseConnected) {
+      console.log("🗑️ Deleting user from Supabase:", userToRemove)
       const result = await deleteUser(userToRemove)
       if (result.error) {
-        addDebugInfo(`User delete error: ${JSON.stringify(result.error)}`)
+        console.error("Error deleting user:", result.error)
         setImportError("Fout bij verwijderen gebruiker")
         setTimeout(() => setImportError(""), 3000)
       } else {
-        addDebugInfo("✅ User deleted from Supabase successfully")
+        console.log("✅ User deleted from Supabase")
         setUsers((prev) => prev.filter((u) => u !== userToRemove))
       }
     } else {
@@ -699,16 +667,15 @@ export default function ProductRegistrationApp() {
   }
 
   const removeProduct = async (productToRemove: Product) => {
-    addDebugInfo(`🗑️ Removing product: ${productToRemove.name}`)
-
     if (isSupabaseConnected) {
+      console.log("🗑️ Deleting product from Supabase:", productToRemove.id)
       const result = await deleteProduct(productToRemove.id)
       if (result.error) {
-        addDebugInfo(`Product delete error: ${JSON.stringify(result.error)}`)
+        console.error("Error deleting product:", result.error)
         setImportError("Fout bij verwijderen product")
         setTimeout(() => setImportError(""), 3000)
       } else {
-        addDebugInfo("✅ Product deleted from Supabase successfully")
+        console.log("✅ Product deleted from Supabase")
         setProducts((prev) => prev.filter((p) => p.id !== productToRemove.id))
       }
     } else {
@@ -721,11 +688,14 @@ export default function ProductRegistrationApp() {
 
   const removeLocation = async (locationToRemove: string) => {
     if (isSupabaseConnected) {
+      console.log("🗑️ Deleting location from Supabase:", locationToRemove)
       const result = await deleteLocation(locationToRemove)
       if (result.error) {
+        console.error("Error deleting location:", result.error)
         setImportError("Fout bij verwijderen locatie")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        console.log("✅ Location deleted from Supabase")
         setLocations((prev) => prev.filter((l) => l !== locationToRemove))
       }
     } else {
@@ -738,11 +708,14 @@ export default function ProductRegistrationApp() {
 
   const removePurpose = async (purposeToRemove: string) => {
     if (isSupabaseConnected) {
+      console.log("🗑️ Deleting purpose from Supabase:", purposeToRemove)
       const result = await deletePurpose(purposeToRemove)
       if (result.error) {
+        console.error("Error deleting purpose:", result.error)
         setImportError("Fout bij verwijderen doel")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        console.log("✅ Purpose deleted from Supabase")
         setPurposes((prev) => prev.filter((p) => p !== purposeToRemove))
       }
     } else {
@@ -755,11 +728,14 @@ export default function ProductRegistrationApp() {
 
   const removeCategory = async (categoryToRemove: Category) => {
     if (isSupabaseConnected) {
+      console.log("🗑️ Deleting category from Supabase:", categoryToRemove.id)
       const result = await deleteCategory(categoryToRemove.id)
       if (result.error) {
+        console.error("Error deleting category:", result.error)
         setImportError("Fout bij verwijderen categorie")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        console.log("✅ Category deleted from Supabase")
         setCategories((prev) => prev.filter((c) => c.id !== categoryToRemove.id))
       }
     } else {
@@ -834,22 +810,6 @@ export default function ProductRegistrationApp() {
         {importError && (
           <Alert className="mb-6 border-red-200 bg-red-50">
             <AlertDescription className="text-red-800">{importError}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Debug Info Panel */}
-        {debugInfo.length > 0 && (
-          <Alert className="mb-6 border-gray-200 bg-gray-50">
-            <AlertDescription>
-              <details>
-                <summary className="cursor-pointer font-medium">🔍 Debug Info (klik om te bekijken)</summary>
-                <div className="mt-2 space-y-1 text-xs font-mono">
-                  {debugInfo.map((info, index) => (
-                    <div key={index}>{info}</div>
-                  ))}
-                </div>
-              </details>
-            </AlertDescription>
           </Alert>
         )}
 
