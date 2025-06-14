@@ -47,21 +47,54 @@ export const isSupabaseConfigured = () => {
 
 // Test Supabase connection
 export const testSupabaseConnection = async () => {
+  console.log("🔍 === DETAILED CONNECTION TEST ===")
+
   if (!supabase) {
     console.log("❌ No Supabase client available")
     return false
   }
 
   try {
-    console.log("🔍 Testing Supabase connection...")
-    const { data, error } = await supabase.from("users").select("count", { count: "exact", head: true })
+    console.log("🔍 Testing basic connection...")
 
-    if (error) {
-      console.error("❌ Supabase connection test failed:", error)
+    // Test 1: Simple query
+    console.log("🔍 Test 1: Basic select query...")
+    const { data: testData, error: testError } = await supabase
+      .from("users")
+      .select("count", { count: "exact", head: true })
+
+    if (testError) {
+      console.error("❌ Basic query failed:", testError)
+      console.error("❌ Error details:", {
+        message: testError.message,
+        details: testError.details,
+        hint: testError.hint,
+        code: testError.code,
+      })
       return false
     }
 
-    console.log("✅ Supabase connection test successful")
+    console.log("✅ Basic query successful")
+
+    // Test 2: Check each table individually
+    const tables = ["users", "products", "categories", "locations", "purposes", "registrations"]
+
+    for (const table of tables) {
+      console.log(`🔍 Testing table: ${table}`)
+      try {
+        const { data, error } = await supabase.from(table).select("*", { count: "exact", head: true })
+
+        if (error) {
+          console.error(`❌ Table ${table} failed:`, error)
+        } else {
+          console.log(`✅ Table ${table} accessible`)
+        }
+      } catch (err) {
+        console.error(`❌ Table ${table} exception:`, err)
+      }
+    }
+
+    console.log("✅ Supabase connection test completed")
     return true
   } catch (error) {
     console.error("❌ Supabase connection test error:", error)
@@ -476,7 +509,9 @@ export const updateProduct = async (id: string, updates: any) => {
   }
 
   try {
-    console.log("🔄 Updating product in Supabase:", { id, updates })
+    console.log("🔄 === PRODUCT UPDATE DEBUG ===")
+    console.log("🔄 Product ID:", id, typeof id)
+    console.log("🔄 Updates received:", updates)
 
     // Ensure category_id is properly handled
     const updateData = {
@@ -486,18 +521,32 @@ export const updateProduct = async (id: string, updates: any) => {
     }
 
     console.log("🔄 Final update data:", updateData)
+    console.log("🔄 Attempting to update product with ID:", Number(id))
 
     const { data, error } = await supabase.from("products").update(updateData).eq("id", Number(id)).select()
 
+    console.log("🔄 Supabase response:", { data, error })
+
     if (error) {
       console.error("❌ Error updating product:", error)
+      console.error("❌ Error details:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
       return { data: null, error }
     }
 
-    console.log("✅ Product updated in Supabase:", data)
+    if (!data || data.length === 0) {
+      console.error("❌ No product found with ID:", id)
+      return { data: null, error: { message: "Product not found" } }
+    }
+
+    console.log("✅ Product updated in Supabase:", data[0])
     return { data: data[0], error: null }
   } catch (error) {
-    console.error("❌ Error in updateProduct:", error)
+    console.error("❌ Exception in updateProduct:", error)
     return { data: null, error }
   }
 }
@@ -839,6 +888,5 @@ export const subscribeToRegistrations = (callback: (registrations: Registration[
       }
     })
     .subscribe()
-
   return subscription
 }
