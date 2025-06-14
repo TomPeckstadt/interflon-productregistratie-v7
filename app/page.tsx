@@ -177,7 +177,6 @@ export default function ProductRegistrationApp() {
         locations: locationsResult.data?.length || 0,
         purposes: purposesResult.data?.length || 0,
         categories: categoriesResult.data?.length || 0,
-        registrations: registrationsResult.data?.length || 0,
       })
 
       // Check if we have a real Supabase connection (not mock mode)
@@ -198,6 +197,7 @@ export default function ProductRegistrationApp() {
         setRegistrations(registrationsResult.data || [])
 
         console.log("📋 Registrations loaded:", registrationsResult.data?.length || 0)
+        console.log("📋 Current registrations state:", registrations.length)
 
         // Set default user if available
         if (usersResult.data && usersResult.data.length > 0) {
@@ -218,6 +218,24 @@ export default function ProductRegistrationApp() {
       setConnectionStatus("Lokale opslag actief")
       loadLocalStorageData()
     }
+
+    // In de loadAllData functie, na het laden van producten:
+    console.log(
+      "📦 Products loaded with categories:",
+      products.map((p) => ({
+        name: p.name,
+        categoryId: p.categoryId,
+        qrcode: p.qrcode,
+      })),
+    )
+
+    console.log(
+      "🗂️ Categories loaded:",
+      categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+      })),
+    )
   }
 
   const loadLocalStorageData = () => {
@@ -322,7 +340,7 @@ export default function ProductRegistrationApp() {
     })
 
     const registrationsSub = subscribeToRegistrations((newRegistrations) => {
-      console.log("📋 Registrations updated via subscription:", newRegistrations.length)
+      console.log("📋 Registrations updated:", newRegistrations.length)
       setRegistrations(newRegistrations)
     })
 
@@ -414,19 +432,16 @@ export default function ProductRegistrationApp() {
       }
 
       if (isSupabaseConnected) {
-        // AANGEPAST: gebruik de juiste kolom namen voor Supabase
         const registrationData = {
-          user_name: currentUser,
-          product_name: selectedProduct,
+          user: currentUser,
+          product: selectedProduct,
           location,
           purpose,
           timestamp: now.toISOString(),
           date: now.toISOString().split("T")[0],
           time: now.toTimeString().split(" ")[0],
-          qr_code: product?.qrcode,
+          qrcode: product?.qrcode,
         }
-
-        console.log("💾 Saving registration with data:", registrationData)
 
         const result = await saveRegistration(registrationData)
         if (result.error) {
@@ -434,12 +449,7 @@ export default function ProductRegistrationApp() {
           setImportError("Fout bij opslaan registratie")
           setTimeout(() => setImportError(""), 3000)
         } else {
-          console.log("✅ Registration saved to Supabase successfully")
-          // Refresh registrations data
-          const { data: updatedRegistrations } = await fetchRegistrations()
-          if (updatedRegistrations) {
-            setRegistrations(updatedRegistrations)
-          }
+          console.log("✅ Registration saved to Supabase")
         }
       } else {
         setRegistrations((prev) => [newRegistration, ...prev])
@@ -502,13 +512,38 @@ export default function ProductRegistrationApp() {
 
   // Get filtered products for dropdown
   const getFilteredProducts = () => {
-    return products
-      .filter((product) => selectedCategory === "all" || product.categoryId === selectedCategory)
+    console.log("🔍 Filtering products:", {
+      selectedCategory,
+      totalProducts: products.length,
+      sampleProduct: products[0],
+    })
+
+    const filtered = products
+      .filter((product) => {
+        if (selectedCategory === "all") return true
+
+        // Debug logging voor elke product
+        console.log("🔍 Product filter check:", {
+          productName: product.name,
+          productCategoryId: product.categoryId,
+          selectedCategory,
+          match: product.categoryId === selectedCategory,
+        })
+
+        return product.categoryId === selectedCategory
+      })
       .filter(
         (product) =>
           product.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
           (product.qrcode && product.qrcode.toLowerCase().includes(productSearchQuery.toLowerCase())),
       )
+
+    console.log("🔍 Filtered products result:", {
+      filteredCount: filtered.length,
+      filteredProducts: filtered.map((p) => ({ name: p.name, categoryId: p.categoryId })),
+    })
+
+    return filtered
   }
 
   // Handle product selection
