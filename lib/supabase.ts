@@ -513,11 +513,13 @@ export const updateProduct = async (id: string, updates: any) => {
     console.log("🔄 Product ID:", id, typeof id)
     console.log("🔄 Updates received:", updates)
 
-    // Ensure category_id is properly handled
+    // Ensure all fields are properly handled
     const updateData = {
       name: updates.name,
       qr_code: updates.qr_code,
       category_id: updates.category_id === null ? null : Number(updates.category_id),
+      attachment_url: updates.attachment_url || null,
+      attachment_name: updates.attachment_name || null,
     }
 
     console.log("🔄 Final update data:", updateData)
