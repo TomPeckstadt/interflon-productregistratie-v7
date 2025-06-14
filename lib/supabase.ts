@@ -156,7 +156,9 @@ const getCategoryIdFromName = (categoryName: string | null): string | undefined 
     Onderhoud: "3",
   }
 
-  return mapping[categoryName]
+  const result = mapping[categoryName]
+  console.log(`🔄 getCategoryIdFromName: "${categoryName}" -> "${result}"`)
+  return result
 }
 
 const getCategoryNameFromId = (categoryId: string | undefined): string | null => {
@@ -168,7 +170,9 @@ const getCategoryNameFromId = (categoryId: string | undefined): string | null =>
     "3": "Onderhoud",
   }
 
-  return mapping[categoryId] || null
+  const result = mapping[categoryId] || null
+  console.log(`🔄 getCategoryNameFromId: "${categoryId}" -> "${result}"`)
+  return result
 }
 
 // Mock data voor fallback
@@ -199,6 +203,7 @@ export async function fetchProducts() {
     }
 
     const supabase = getSupabaseClient()
+    console.log("📦 Fetching products from Supabase...")
     const { data, error } = await supabase.from("products").select("*").order("id", { ascending: true })
 
     if (error) {
@@ -219,9 +224,11 @@ export async function fetchProducts() {
         const categoryId = getCategoryIdFromName(product.category)
 
         console.log("🔄 Mapping product:", {
+          id: product.id,
           name: product.name,
           supabaseCategory: product.category,
           mappedCategoryId: categoryId,
+          qr_code: product.qr_code,
         })
 
         return {
@@ -264,16 +271,21 @@ export async function saveProduct(product: Product) {
     console.log("💾 Saving product data to Supabase:", {
       original: product,
       mapped: productData,
+      categoryMapping: {
+        inputCategoryId: product.categoryId,
+        outputCategoryName: categoryName,
+      },
     })
 
     // Check if this is an update (has ID) or insert (new product)
     if (product.id && product.id !== Date.now().toString()) {
       // Update existing product
+      console.log(`💾 Updating product with ID: ${product.id}`)
       const { data, error } = await supabase.from("products").update(productData).eq("id", product.id).select()
 
       if (error) {
         console.error("❌ Error updating product:", error)
-        return { data: product, error: null }
+        return { data: product, error: error }
       }
 
       console.log("✅ Product updated in Supabase:", data)
@@ -281,14 +293,17 @@ export async function saveProduct(product: Product) {
       // Return the updated product with correct mapping
       const updatedProduct = data?.[0]
       if (updatedProduct) {
+        const mappedResult = {
+          id: updatedProduct.id.toString(),
+          name: updatedProduct.name,
+          qrcode: updatedProduct.qr_code,
+          categoryId: getCategoryIdFromName(updatedProduct.category),
+          category: updatedProduct.category,
+        }
+
+        console.log("✅ Returning mapped updated product:", mappedResult)
         return {
-          data: {
-            id: updatedProduct.id.toString(),
-            name: updatedProduct.name,
-            qrcode: updatedProduct.qr_code,
-            categoryId: getCategoryIdFromName(updatedProduct.category),
-            category: updatedProduct.category,
-          },
+          data: mappedResult,
           error: null,
         }
       }
@@ -296,12 +311,13 @@ export async function saveProduct(product: Product) {
       return { data: product, error: null }
     } else {
       // Insert new product
+      console.log("💾 Inserting new product")
       const { data, error } = await supabase.from("products").insert([productData]).select()
 
       if (error) {
         console.error("❌ Error saving product:", error)
         const newProduct = { ...product, id: Date.now().toString() }
-        return { data: newProduct, error: null }
+        return { data: newProduct, error: error }
       }
 
       console.log("✅ Product saved to Supabase:", data)
@@ -309,14 +325,17 @@ export async function saveProduct(product: Product) {
       // Return the new product with correct mapping
       const newProduct = data?.[0]
       if (newProduct) {
+        const mappedResult = {
+          id: newProduct.id.toString(),
+          name: newProduct.name,
+          qrcode: newProduct.qr_code,
+          categoryId: getCategoryIdFromName(newProduct.category),
+          category: newProduct.category,
+        }
+
+        console.log("✅ Returning mapped new product:", mappedResult)
         return {
-          data: {
-            id: newProduct.id.toString(),
-            name: newProduct.name,
-            qrcode: newProduct.qr_code,
-            categoryId: getCategoryIdFromName(newProduct.category),
-            category: newProduct.category,
-          },
+          data: mappedResult,
           error: null,
         }
       }
@@ -326,7 +345,7 @@ export async function saveProduct(product: Product) {
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan product - simuleer lokaal:", error)
     const newProduct = { ...product, id: Date.now().toString() }
-    return { data: newProduct, error: null }
+    return { data: newProduct, error: error }
   }
 }
 
@@ -875,6 +894,14 @@ export function subscribeToUsers(callback: (users: string[]) => void) {
   }
 }
 
+// Global flag to temporarily disable product subscription during edits
+let isProductEditInProgress = false
+
+export function setProductEditInProgress(inProgress: boolean) {
+  console.log(`🔄 Product edit in progress: ${inProgress}`)
+  isProductEditInProgress = inProgress
+}
+
 export function subscribeToProducts(callback: (products: Product[]) => void) {
   debugLog("Setting up products subscription")
 
@@ -889,11 +916,18 @@ export function subscribeToProducts(callback: (products: Product[]) => void) {
     const subscription = supabase
       .channel("products-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "products" }, async (payload) => {
-        debugLog("Products change detected:", payload)
+        console.log("📦 Products change detected:", payload)
+
+        if (isProductEditInProgress) {
+          console.log("🚫 Product edit in progress, skipping subscription update")
+          return
+        }
+
+        console.log("🔄 Fetching updated products due to subscription")
         const { data, error } = await fetchProducts()
 
         if (!error && data) {
-          debugLog("Updated products list:", data)
+          console.log("📦 Calling callback with updated products:", data.length)
           callback(data)
         }
       })
