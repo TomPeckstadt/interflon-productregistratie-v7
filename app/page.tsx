@@ -782,6 +782,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
         setImportError("Fout bij opslaan gebruiker")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        // FORCE LOCAL STATE UPDATE - TOEGEVOEGD
+        console.log("🔄 Forcing local users refresh...")
+        const refreshResult = await fetchUsers()
+        if (refreshResult.data) {
+          console.log("🔄 Updating local users state...")
+          setUsers(refreshResult.data)
+        }
         setImportMessage("✅ Gebruiker toegevoegd!")
         setTimeout(() => setImportMessage(""), 2000)
       }
@@ -804,6 +811,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
         setImportError("Fout bij opslaan product")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        // FORCE LOCAL STATE UPDATE - TOEGEVOEGD
+        console.log("🔄 Forcing local products refresh...")
+        const refreshResult = await fetchProducts()
+        if (refreshResult.data) {
+          console.log("🔄 Updating local products state...")
+          setProducts(refreshResult.data)
+        }
         setImportMessage("✅ Product toegevoegd!")
         setTimeout(() => setImportMessage(""), 2000)
       }
@@ -822,6 +836,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
         setImportError("Fout bij opslaan locatie")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        // FORCE LOCAL STATE UPDATE - TOEGEVOEGD
+        console.log("🔄 Forcing local locations refresh...")
+        const refreshResult = await fetchLocations()
+        if (refreshResult.data) {
+          console.log("🔄 Updating local locations state...")
+          setLocations(refreshResult.data)
+        }
         setImportMessage("✅ Locatie toegevoegd!")
         setTimeout(() => setImportMessage(""), 2000)
       }
@@ -837,6 +858,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
         setImportError("Fout bij opslaan doel")
         setTimeout(() => setImportError(""), 3000)
       } else {
+        // FORCE LOCAL STATE UPDATE - TOEGEVOEGD
+        console.log("🔄 Forcing local purposes refresh...")
+        const refreshResult = await fetchPurposes()
+        if (refreshResult.data) {
+          console.log("🔄 Updating local purposes state...")
+          setPurposes(refreshResult.data)
+        }
         setImportMessage("✅ Doel toegevoegd!")
         setTimeout(() => setImportMessage(""), 2000)
       }
