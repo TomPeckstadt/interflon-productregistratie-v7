@@ -106,16 +106,25 @@ export default function ProductRegistrationApp() {
   const [newPurposeName, setNewPurposeName] = useState("")
   const [newCategoryName, setNewCategoryName] = useState("")
 
-  // Edit states
+  // Edit states - FIXED: Store original values separately
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [originalProduct, setOriginalProduct] = useState<Product | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
+
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [originalCategory, setOriginalCategory] = useState<Category | null>(null)
   const [showEditCategoryDialog, setShowEditCategoryDialog] = useState(false)
-  const [editingUser, setEditingUser] = useState<string | null>(null)
+
+  const [editingUser, setEditingUser] = useState<string>("")
+  const [originalUser, setOriginalUser] = useState<string>("")
   const [showEditUserDialog, setShowEditUserDialog] = useState(false)
-  const [editingLocation, setEditingLocation] = useState<string | null>(null)
+
+  const [editingLocation, setEditingLocation] = useState<string>("")
+  const [originalLocation, setOriginalLocation] = useState<string>("")
   const [showEditLocationDialog, setShowEditLocationDialog] = useState(false)
-  const [editingPurpose, setEditingPurpose] = useState<string | null>(null)
+
+  const [editingPurpose, setEditingPurpose] = useState<string>("")
+  const [originalPurpose, setOriginalPurpose] = useState<string>("")
   const [showEditPurposeDialog, setShowEditPurposeDialog] = useState(false)
 
   // Product selector states
@@ -173,7 +182,7 @@ export default function ProductRegistrationApp() {
         // Set data from Supabase (even if empty arrays)
         setUsers(usersResult.data || [])
         setProducts(productsResult.data || [])
-        setLocation(locationsResult.data || [])
+        setLocations(locationsResult.data || [])
         setPurposes(purposesResult.data || [])
         setCategories(categoriesResult.data || [])
         setRegistrations(registrationsResult.data || [])
@@ -233,10 +242,10 @@ export default function ProductRegistrationApp() {
 
     if (savedLocations) {
       const parsedLocations = JSON.parse(savedLocations)
-      setLocation(parsedLocations)
+      setLocations(parsedLocations)
     } else {
       const defaultLocations = ["Kantoor 1.1", "Kantoor 1.2", "Vergaderzaal A", "Warehouse", "Thuis"]
-      setLocation(defaultLocations)
+      setLocations(defaultLocations)
     }
 
     if (savedPurposes) {
@@ -287,7 +296,7 @@ export default function ProductRegistrationApp() {
 
     const locationsSub = subscribeToLocations((newLocations) => {
       console.log("📍 Locations updated:", newLocations.length)
-      setLocation(newLocations)
+      setLocations(newLocations)
     })
 
     const purposesSub = subscribeToPurposes((newPurposes) => {
@@ -494,6 +503,42 @@ export default function ProductRegistrationApp() {
     setShowProductDropdown(false)
   }
 
+  // FIXED: Edit handlers that properly store original values
+  const handleEditProduct = (product: Product) => {
+    console.log("🔧 Starting product edit:", product)
+    setOriginalProduct({ ...product })
+    setEditingProduct({ ...product })
+    setShowEditDialog(true)
+  }
+
+  const handleEditUser = (user: string) => {
+    console.log("🔧 Starting user edit:", user)
+    setOriginalUser(user)
+    setEditingUser(user)
+    setShowEditUserDialog(true)
+  }
+
+  const handleEditCategory = (category: Category) => {
+    console.log("🔧 Starting category edit:", category)
+    setOriginalCategory({ ...category })
+    setEditingCategory({ ...category })
+    setShowEditCategoryDialog(true)
+  }
+
+  const handleEditLocation = (location: string) => {
+    console.log("🔧 Starting location edit:", location)
+    setOriginalLocation(location)
+    setEditingLocation(location)
+    setShowEditLocationDialog(true)
+  }
+
+  const handleEditPurpose = (purpose: string) => {
+    console.log("🔧 Starting purpose edit:", purpose)
+    setOriginalPurpose(purpose)
+    setEditingPurpose(purpose)
+    setShowEditPurposeDialog(true)
+  }
+
   // Add functions
   const addNewUser = async () => {
     if (newUserName.trim() && !users.includes(newUserName.trim())) {
@@ -566,10 +611,10 @@ export default function ProductRegistrationApp() {
           setTimeout(() => setImportError(""), 3000)
         } else {
           console.log("✅ Location saved to Supabase")
-          setLocation((prev) => [...prev, locationName])
+          setLocations((prev) => [...prev, locationName])
         }
       } else {
-        setLocation((prev) => [...prev, locationName])
+        setLocations((prev) => [...prev, locationName])
       }
 
       setNewLocationName("")
@@ -683,10 +728,10 @@ export default function ProductRegistrationApp() {
         setTimeout(() => setImportError(""), 3000)
       } else {
         console.log("✅ Location deleted from Supabase")
-        setLocation((prev) => prev.filter((l) => l !== locationToRemove))
+        setLocations((prev) => prev.filter((l) => l !== locationToRemove))
       }
     } else {
-      setLocation((prev) => prev.filter((l) => l !== locationToRemove))
+      setLocations((prev) => prev.filter((l) => l !== locationToRemove))
     }
 
     setImportMessage("✅ Locatie verwijderd!")
@@ -1070,10 +1115,7 @@ export default function ProductRegistrationApp() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => {
-                                    setEditingUser(user)
-                                    setShowEditUserDialog(true)
-                                  }}
+                                  onClick={() => handleEditUser(user)}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -1180,10 +1222,7 @@ export default function ProductRegistrationApp() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => {
-                                    setEditingProduct(product)
-                                    setShowEditDialog(true)
-                                  }}
+                                  onClick={() => handleEditProduct(product)}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -1251,10 +1290,7 @@ export default function ProductRegistrationApp() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => {
-                                    setEditingCategory(category)
-                                    setShowEditCategoryDialog(true)
-                                  }}
+                                  onClick={() => handleEditCategory(category)}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -1322,10 +1358,7 @@ export default function ProductRegistrationApp() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => {
-                                    setEditingLocation(location)
-                                    setShowEditLocationDialog(true)
-                                  }}
+                                  onClick={() => handleEditLocation(location)}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -1393,10 +1426,7 @@ export default function ProductRegistrationApp() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => {
-                                    setEditingPurpose(purpose)
-                                    setShowEditPurposeDialog(true)
-                                  }}
+                                  onClick={() => handleEditPurpose(purpose)}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -1510,7 +1540,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit Product Dialog */}
-      {showEditDialog && editingProduct && (
+      {showEditDialog && editingProduct && originalProduct && (
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1563,8 +1593,9 @@ export default function ProductRegistrationApp() {
               <Button
                 onClick={async () => {
                   console.log("🔄 Saving edited product:", editingProduct)
+                  console.log("🔄 Original product:", originalProduct)
 
-                  if (!editingProduct) return
+                  if (!editingProduct || !originalProduct) return
 
                   try {
                     if (isSupabaseConnected) {
@@ -1596,6 +1627,7 @@ export default function ProductRegistrationApp() {
 
                   setShowEditDialog(false)
                   setEditingProduct(null)
+                  setOriginalProduct(null)
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
@@ -1607,7 +1639,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit User Dialog */}
-      {showEditUserDialog && editingUser && (
+      {showEditUserDialog && editingUser && originalUser && (
         <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1626,10 +1658,10 @@ export default function ProductRegistrationApp() {
               </Button>
               <Button
                 onClick={async () => {
-                  if (!editingUser) return
+                  console.log("🔄 Saving edited user:", editingUser)
+                  console.log("🔄 Original user:", originalUser)
 
-                  const originalUser = users.find((u) => u === editingUser)
-                  if (!originalUser) return
+                  if (!editingUser || !originalUser) return
 
                   try {
                     if (isSupabaseConnected) {
@@ -1658,7 +1690,8 @@ export default function ProductRegistrationApp() {
                   }
 
                   setShowEditUserDialog(false)
-                  setEditingUser(null)
+                  setEditingUser("")
+                  setOriginalUser("")
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
@@ -1670,7 +1703,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit Category Dialog */}
-      {showEditCategoryDialog && editingCategory && (
+      {showEditCategoryDialog && editingCategory && originalCategory && (
         <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1693,7 +1726,10 @@ export default function ProductRegistrationApp() {
               </Button>
               <Button
                 onClick={async () => {
-                  if (!editingCategory) return
+                  console.log("🔄 Saving edited category:", editingCategory)
+                  console.log("🔄 Original category:", originalCategory)
+
+                  if (!editingCategory || !originalCategory) return
 
                   try {
                     if (isSupabaseConnected) {
@@ -1711,7 +1747,7 @@ export default function ProductRegistrationApp() {
                         setTimeout(() => setImportError(""), 3000)
                       }
                     } else {
-                      setCategories((prev) => prev.map((c) => (c.id === editingCategory.id ? editingCategory : c)))
+                      setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? editingCategory : c)))
                       setImportMessage("✅ Categorie bijgewerkt!")
                       setTimeout(() => setImportMessage(""), 2000)
                     }
@@ -1723,6 +1759,7 @@ export default function ProductRegistrationApp() {
 
                   setShowEditCategoryDialog(false)
                   setEditingCategory(null)
+                  setOriginalCategory(null)
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
@@ -1734,7 +1771,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit Location Dialog */}
-      {showEditLocationDialog && editingLocation && (
+      {showEditLocationDialog && editingLocation && originalLocation && (
         <Dialog open={showEditLocationDialog} onOpenChange={setShowEditLocationDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1757,10 +1794,10 @@ export default function ProductRegistrationApp() {
               </Button>
               <Button
                 onClick={async () => {
-                  if (!editingLocation) return
+                  console.log("🔄 Saving edited location:", editingLocation)
+                  console.log("🔄 Original location:", originalLocation)
 
-                  const originalLocation = locations.find((l) => l === editingLocation)
-                  if (!originalLocation) return
+                  if (!editingLocation || !originalLocation) return
 
                   try {
                     if (isSupabaseConnected) {
@@ -1769,7 +1806,7 @@ export default function ProductRegistrationApp() {
                         // Force refresh locations from database
                         const { data: refreshedLocations } = await fetchLocations()
                         if (refreshedLocations) {
-                          setLocation(refreshedLocations)
+                          setLocations(refreshedLocations)
                         }
                         setImportMessage("✅ Locatie bijgewerkt!")
                         setTimeout(() => setImportMessage(""), 2000)
@@ -1778,18 +1815,19 @@ export default function ProductRegistrationApp() {
                         setTimeout(() => setImportError(""), 3000)
                       }
                     } else {
-                      setLocation((prev) => prev.map((l) => (l === originalLocation ? editingLocation : l)))
+                      setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation : l)))
                       setImportMessage("✅ Locatie bijgewerkt!")
                       setTimeout(() => setImportMessage(""), 2000)
                     }
                   } catch (error) {
                     console.error("❌ Error updating location:", error)
                     setImportError("Onverwachte fout bij bijwerken")
-                    setTimeout(() => setImportMessage(""), 3000)
+                    setTimeout(() => setImportError(""), 3000)
                   }
 
                   setShowEditLocationDialog(false)
-                  setEditingLocation(null)
+                  setEditingLocation("")
+                  setOriginalLocation("")
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
@@ -1801,7 +1839,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit Purpose Dialog */}
-      {showEditPurposeDialog && editingPurpose && (
+      {showEditPurposeDialog && editingPurpose && originalPurpose && (
         <Dialog open={showEditPurposeDialog} onOpenChange={setShowEditPurposeDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1824,10 +1862,10 @@ export default function ProductRegistrationApp() {
               </Button>
               <Button
                 onClick={async () => {
-                  if (!editingPurpose) return
+                  console.log("🔄 Saving edited purpose:", editingPurpose)
+                  console.log("🔄 Original purpose:", originalPurpose)
 
-                  const originalPurpose = purposes.find((p) => p === editingPurpose)
-                  if (!originalPurpose) return
+                  if (!editingPurpose || !originalPurpose) return
 
                   try {
                     if (isSupabaseConnected) {
@@ -1856,7 +1894,8 @@ export default function ProductRegistrationApp() {
                   }
 
                   setShowEditPurposeDialog(false)
-                  setEditingPurpose(null)
+                  setEditingPurpose("")
+                  setOriginalPurpose("")
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
