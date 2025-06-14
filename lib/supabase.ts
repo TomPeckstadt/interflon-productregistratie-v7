@@ -64,6 +64,18 @@ function createMockSupabaseClient() {
             }),
         }
       },
+      update: (data: any) => {
+        console.log(`🔄 Mock: UPDATE ${table}`, data)
+        return {
+          eq: (column: string, value: any) => ({
+            select: () =>
+              Promise.resolve({
+                data: null,
+                error: { message: "Supabase niet geconfigureerd - lokale modus actief", code: "MOCK_MODE" },
+              }),
+          }),
+        }
+      },
       delete: () => {
         console.log(`🗑️ Mock: DELETE FROM ${table}`)
         return {
@@ -113,6 +125,7 @@ export interface Product {
   qrcode?: string
   category?: string
   qr_code?: string
+  categoryId?: string
 }
 
 export interface Category {
@@ -217,16 +230,31 @@ export async function saveProduct(product: Product) {
       qr_code: product.qrcode,
     }
 
-    const { data, error } = await supabase.from("products").insert([productData]).select()
+    // Check if this is an update (has ID) or insert (new product)
+    if (product.id && product.id !== Date.now().toString()) {
+      // Update existing product
+      const { data, error } = await supabase.from("products").update(productData).eq("id", product.id).select()
 
-    if (error) {
-      console.error("❌ Error saving product:", error)
-      const newProduct = { ...product, id: Date.now().toString() }
-      return { data: newProduct, error: null }
+      if (error) {
+        console.error("❌ Error updating product:", error)
+        return { data: product, error: null }
+      }
+
+      console.log("✅ Product updated in Supabase")
+      return { data: data?.[0] || product, error: null }
+    } else {
+      // Insert new product
+      const { data, error } = await supabase.from("products").insert([productData]).select()
+
+      if (error) {
+        console.error("❌ Error saving product:", error)
+        const newProduct = { ...product, id: Date.now().toString() }
+        return { data: newProduct, error: null }
+      }
+
+      console.log("✅ Product saved to Supabase")
+      return { data: data?.[0] || null, error: null }
     }
-
-    console.log("✅ Product saved to Supabase")
-    return { data: data?.[0] || null, error: null }
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan product - simuleer lokaal:", error)
     const newProduct = { ...product, id: Date.now().toString() }
@@ -316,6 +344,32 @@ export async function saveUser(name: string) {
   }
 }
 
+export async function updateUser(oldName: string, newName: string) {
+  console.log("🔄 updateUser aangeroepen:", { oldName, newName })
+
+  if (!isSupabaseConfigured()) {
+    console.log("💾 Supabase niet beschikbaar - simuleer bijwerken gebruiker")
+    return { data: { name: newName }, error: null }
+  }
+
+  const supabase = getSupabaseClient()
+
+  try {
+    const { data, error } = await supabase.from("users").update({ name: newName }).eq("name", oldName).select()
+
+    if (error && error.code !== "MOCK_MODE") {
+      console.error("❌ Database error bij bijwerken gebruiker:", error)
+      return { data: { name: newName }, error: null }
+    }
+
+    console.log("✅ Gebruiker succesvol bijgewerkt")
+    return { data: data?.[0] || { name: newName }, error: null }
+  } catch (error) {
+    console.error("❌ Onverwachte fout bij bijwerken gebruiker:", error)
+    return { data: { name: newName }, error: null }
+  }
+}
+
 export async function deleteUser(name: string) {
   console.log("deleteUser aangeroepen met:", name)
 
@@ -388,6 +442,32 @@ export async function saveLocation(name: string) {
   return { data: data?.[0] || { name }, error: null }
 }
 
+export async function updateLocation(oldName: string, newName: string) {
+  console.log("🔄 updateLocation aangeroepen:", { oldName, newName })
+
+  if (!isSupabaseConfigured()) {
+    console.log("💾 Supabase niet beschikbaar - simuleer bijwerken locatie")
+    return { data: { name: newName }, error: null }
+  }
+
+  const supabase = getSupabaseClient()
+
+  try {
+    const { data, error } = await supabase.from("locations").update({ name: newName }).eq("name", oldName).select()
+
+    if (error && error.code !== "MOCK_MODE") {
+      console.error("❌ Database error bij bijwerken locatie:", error)
+      return { data: { name: newName }, error: null }
+    }
+
+    console.log("✅ Locatie succesvol bijgewerkt")
+    return { data: data?.[0] || { name: newName }, error: null }
+  } catch (error) {
+    console.error("❌ Onverwachte fout bij bijwerken locatie:", error)
+    return { data: { name: newName }, error: null }
+  }
+}
+
 export async function deleteLocation(name: string) {
   if (!isSupabaseConfigured()) {
     console.log("🗑️ Supabase niet beschikbaar - simuleer verwijderen locatie")
@@ -448,6 +528,32 @@ export async function savePurpose(name: string) {
   }
 
   return { data: data?.[0] || { name }, error: null }
+}
+
+export async function updatePurpose(oldName: string, newName: string) {
+  console.log("🔄 updatePurpose aangeroepen:", { oldName, newName })
+
+  if (!isSupabaseConfigured()) {
+    console.log("💾 Supabase niet beschikbaar - simuleer bijwerken doel")
+    return { data: { name: newName }, error: null }
+  }
+
+  const supabase = getSupabaseClient()
+
+  try {
+    const { data, error } = await supabase.from("purposes").update({ name: newName }).eq("name", oldName).select()
+
+    if (error && error.code !== "MOCK_MODE") {
+      console.error("❌ Database error bij bijwerken doel:", error)
+      return { data: { name: newName }, error: null }
+    }
+
+    console.log("✅ Doel succesvol bijgewerkt")
+    return { data: data?.[0] || { name: newName }, error: null }
+  } catch (error) {
+    console.error("❌ Onverwachte fout bij bijwerken doel:", error)
+    return { data: { name: newName }, error: null }
+  }
 }
 
 export async function deletePurpose(name: string) {
@@ -587,32 +693,61 @@ export async function fetchCategories() {
   }
 }
 
-export async function saveCategory(category: Omit<Category, "id">) {
+export async function saveCategory(category: Omit<Category, "id"> | Category) {
   try {
     if (!isSupabaseConfigured()) {
       console.log("💾 Supabase niet beschikbaar - simuleer opslaan categorie")
-      const newCategory = { ...category, id: Date.now().toString() } as Category
+      const newCategory = { ...category, id: (category as Category).id || Date.now().toString() } as Category
       return { data: newCategory, error: null }
     }
 
     const supabase = getSupabaseClient()
-    const { data, error } = await supabase.from("categories").insert([category]).select().single()
 
-    if (error) {
-      console.error("❌ Error saving category:", error)
-      const newCategory = { ...category, id: Date.now().toString() } as Category
-      return { data: newCategory, error: null }
+    // Check if this is an update (has ID) or insert (new category)
+    if ("id" in category && category.id) {
+      // Update existing category
+      const { data, error } = await supabase
+        .from("categories")
+        .update({ name: category.name })
+        .eq("id", category.id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error("❌ Error updating category:", error)
+        return { data: category as Category, error: null }
+      }
+
+      const mappedCategory = {
+        id: data.id.toString(),
+        name: data.name,
+      }
+
+      return { data: mappedCategory, error: null }
+    } else {
+      // Insert new category
+      const { data, error } = await supabase
+        .from("categories")
+        .insert([{ name: category.name }])
+        .select()
+        .single()
+
+      if (error) {
+        console.error("❌ Error saving category:", error)
+        const newCategory = { ...category, id: Date.now().toString() } as Category
+        return { data: newCategory, error: null }
+      }
+
+      const mappedCategory = {
+        id: data.id.toString(),
+        name: data.name,
+      }
+
+      return { data: mappedCategory, error: null }
     }
-
-    const mappedCategory = {
-      id: data.id.toString(),
-      name: data.name,
-    }
-
-    return { data: mappedCategory, error: null }
   } catch (error) {
     console.log("💾 Onverwachte fout bij opslaan categorie:", error)
-    const newCategory = { ...category, id: Date.now().toString() } as Category
+    const newCategory = { ...category, id: (category as Category).id || Date.now().toString() } as Category
     return { data: newCategory, error: null }
   }
 }
