@@ -2041,7 +2041,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                                   day: "2-digit",
                                   month: "2-digit",
                                   year: "numeric",
-                                })}{" "}
+                                })}
                                 {new Date(registration.timestamp).toLocaleTimeString("nl-NL", {
                                   hour: "2-digit",
                                   minute: "2-digit",
@@ -2178,7 +2178,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                       <div className="space-y-4">
                         {/* Simple Pie Chart Representation */}
                         <div className="flex justify-center">
-                          <div className="w-32 h-32 rounded-full relative overflow-hidden">
+                          <div className="w-32 h-32 rounded-full relative overflow-hidden bg-gray-100">
                             {(() => {
                               const productCounts = Object.entries(
                                 registrations.reduce(
@@ -2188,14 +2188,15 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                                   },
                                   {} as Record<string, number>,
                                 ),
-                              ).sort(([, a], [, b]) => b - a)
+                              )
+                                .sort(([, a], [, b]) => b - a)
+                                .slice(0, 5) // Alleen top 5
 
                               const total = productCounts.reduce((sum, [, count]) => sum + count, 0)
                               const colors = ["#ff9999", "#99ff99", "#9999ff", "#ffff99", "#ff99ff"]
                               let currentAngle = 0
 
-                              return productCounts.slice(0, 5).map(([product, count], index) => {
-                                const percentage = (count / total) * 100
+                              return productCounts.map(([product, count], index) => {
                                 const angle = (count / total) * 360
                                 const startAngle = currentAngle
                                 currentAngle += angle
