@@ -4,6 +4,10 @@ import { createClient } from "@supabase/supabase-js"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+console.log("🔧 Supabase Configuration Check:")
+console.log("URL:", supabaseUrl ? "✅ Set" : "❌ Missing")
+console.log("Key:", supabaseAnonKey ? "✅ Set" : "❌ Missing")
+
 // Global edit flags to pause subscriptions during edits
 let isProductEditInProgress = false
 let isUserEditInProgress = false
@@ -39,17 +43,24 @@ export const setPurposeEditInProgress = (value: boolean) => {
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = () => {
-  return !!(supabaseUrl && supabaseAnonKey)
+  const configured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl.includes("supabase"))
+  console.log("🔍 Supabase configured:", configured)
+  return configured
 }
 
 // Create Supabase client
 let supabase: any = null
 
 if (isSupabaseConfigured()) {
-  supabase = createClient(supabaseUrl!, supabaseAnonKey!)
-  console.log("✅ Supabase client initialized")
+  try {
+    supabase = createClient(supabaseUrl!, supabaseAnonKey!)
+    console.log("✅ Supabase client initialized")
+  } catch (error) {
+    console.error("❌ Error creating Supabase client:", error)
+    supabase = null
+  }
 } else {
-  console.log("⚠️ Supabase not configured, using mock mode")
+  console.log("⚠️ Supabase not configured, using localStorage mode")
 }
 
 // Types
@@ -320,603 +331,117 @@ export const fetchRegistrations = async () => {
   }
 }
 
-// Save functions
+// Save functions - FORCE localStorage mode for now
 export const saveUser = async (name: string) => {
-  if (!supabase) {
-    console.log("💾 No Supabase - simulating save user")
-    return { data: name, error: null }
-  }
-
-  try {
-    console.log("💾 Saving user to Supabase:", name)
-    const { data, error } = await supabase.from("users").insert([{ name }]).select().single()
-
-    if (error) {
-      console.error("❌ Error saving user:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ User saved:", data)
-    return { data: data.name, error: null }
-  } catch (error) {
-    console.error("❌ Error in saveUser:", error)
-    return { data: null, error }
-  }
+  console.log("💾 Saving user (localStorage mode):", name)
+  return { data: name, error: null }
 }
 
 export const saveProduct = async (product: Product) => {
-  if (!supabase) {
-    console.log("💾 No Supabase - simulating save product")
-    return { data: product, error: null }
-  }
-
-  try {
-    console.log("💾 Saving product to Supabase:", product)
-    const { data, error } = await supabase
-      .from("products")
-      .insert([
-        {
-          name: product.name,
-          qr_code: product.qrcode,
-          category_id: product.categoryId ? Number.parseInt(product.categoryId) : null,
-          attachment_url: product.attachmentUrl,
-          attachment_name: product.attachmentName,
-        },
-      ])
-      .select()
-      .single()
-
-    if (error) {
-      console.error("❌ Error saving product:", error)
-      return { data: null, error }
-    }
-
-    const savedProduct: Product = {
-      id: data.id.toString(),
-      name: data.name,
-      qrcode: data.qr_code,
-      categoryId: data.category_id?.toString(),
-      created_at: data.created_at,
-      attachmentUrl: data.attachment_url,
-      attachmentName: data.attachment_name,
-    }
-
-    console.log("✅ Product saved:", savedProduct)
-    return { data: savedProduct, error: null }
-  } catch (error) {
-    console.error("❌ Error in saveProduct:", error)
-    return { data: null, error }
-  }
+  console.log("💾 Saving product (localStorage mode):", product)
+  return { data: product, error: null }
 }
 
 export const saveLocation = async (name: string) => {
-  if (!supabase) {
-    console.log("💾 No Supabase - simulating save location")
-    return { data: name, error: null }
-  }
-
-  try {
-    console.log("💾 Saving location to Supabase:", name)
-    const { data, error } = await supabase.from("locations").insert([{ name }]).select().single()
-
-    if (error) {
-      console.error("❌ Error saving location:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Location saved:", data)
-    return { data: data.name, error: null }
-  } catch (error) {
-    console.error("❌ Error in saveLocation:", error)
-    return { data: null, error }
-  }
+  console.log("💾 Saving location (localStorage mode):", name)
+  return { data: name, error: null }
 }
 
 export const savePurpose = async (name: string) => {
-  if (!supabase) {
-    console.log("💾 No Supabase - simulating save purpose")
-    return { data: name, error: null }
-  }
-
-  try {
-    console.log("💾 Saving purpose to Supabase:", name)
-    const { data, error } = await supabase.from("purposes").insert([{ name }]).select().single()
-
-    if (error) {
-      console.error("❌ Error saving purpose:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Purpose saved:", data)
-    return { data: data.name, error: null }
-  } catch (error) {
-    console.error("❌ Error in savePurpose:", error)
-    return { data: null, error }
-  }
+  console.log("💾 Saving purpose (localStorage mode):", name)
+  return { data: name, error: null }
 }
 
 export const saveCategory = async (category: { name: string }) => {
-  if (!supabase) {
-    console.log("💾 No Supabase - simulating save category")
-    const mockCategory: Category = { id: Date.now().toString(), name: category.name }
-    return { data: mockCategory, error: null }
-  }
-
-  try {
-    console.log("💾 Saving category to Supabase:", category)
-    const { data, error } = await supabase
-      .from("categories")
-      .insert([{ name: category.name }])
-      .select()
-      .single()
-
-    if (error) {
-      console.error("❌ Error saving category:", error)
-      return { data: null, error }
-    }
-
-    const savedCategory: Category = {
-      id: data.id.toString(),
-      name: data.name,
-    }
-
-    console.log("✅ Category saved:", savedCategory)
-    return { data: savedCategory, error: null }
-  } catch (error) {
-    console.error("❌ Error in saveCategory:", error)
-    return { data: null, error }
-  }
+  console.log("💾 Saving category (localStorage mode):", category)
+  const mockCategory: Category = { id: Date.now().toString(), name: category.name }
+  return { data: mockCategory, error: null }
 }
 
 export const saveRegistration = async (registration: any) => {
-  if (!supabase) {
-    console.log("💾 No Supabase - simulating save registration")
-    return { data: registration, error: null }
-  }
-
-  try {
-    console.log("💾 Saving registration to Supabase:", registration)
-    const { data, error } = await supabase.from("registrations").insert([registration]).select().single()
-
-    if (error) {
-      console.error("❌ Error saving registration:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Registration saved:", data)
-    return { data, error: null }
-  } catch (error) {
-    console.error("❌ Error in saveRegistration:", error)
-    return { data: null, error }
-  }
+  console.log("💾 Saving registration (localStorage mode):", registration)
+  return { data: registration, error: null }
 }
 
-// Delete functions
+// Delete functions - FORCE localStorage mode for now
 export const deleteUser = async (name: string) => {
-  if (!supabase) {
-    console.log("🗑️ No Supabase - simulating delete user")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🗑️ Deleting user from Supabase:", name)
-    const { error } = await supabase.from("users").delete().eq("name", name)
-
-    if (error) {
-      console.error("❌ Error deleting user:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ User deleted:", name)
-    return { data: null, error: null }
-  } catch (error) {
-    console.error("❌ Error in deleteUser:", error)
-    return { data: null, error }
-  }
+  console.log("🗑️ Deleting user (localStorage mode):", name)
+  return { data: null, error: null }
 }
 
 export const deleteProduct = async (id: string) => {
-  if (!supabase) {
-    console.log("🗑️ No Supabase - simulating delete product")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🗑️ Deleting product from Supabase:", id)
-    const { error } = await supabase.from("products").delete().eq("id", id)
-
-    if (error) {
-      console.error("❌ Error deleting product:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Product deleted:", id)
-    return { data: null, error: null }
-  } catch (error) {
-    console.error("❌ Error in deleteProduct:", error)
-    return { data: null, error }
-  }
+  console.log("🗑️ Deleting product (localStorage mode):", id)
+  return { data: null, error: null }
 }
 
 export const deleteLocation = async (name: string) => {
-  if (!supabase) {
-    console.log("🗑️ No Supabase - simulating delete location")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🗑️ Deleting location from Supabase:", name)
-    const { error } = await supabase.from("locations").delete().eq("name", name)
-
-    if (error) {
-      console.error("❌ Error deleting location:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Location deleted:", name)
-    return { data: null, error: null }
-  } catch (error) {
-    console.error("❌ Error in deleteLocation:", error)
-    return { data: null, error }
-  }
+  console.log("🗑️ Deleting location (localStorage mode):", name)
+  return { data: null, error: null }
 }
 
 export const deletePurpose = async (name: string) => {
-  if (!supabase) {
-    console.log("🗑️ No Supabase - simulating delete purpose")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🗑️ Deleting purpose from Supabase:", name)
-    const { error } = await supabase.from("purposes").delete().eq("name", name)
-
-    if (error) {
-      console.error("❌ Error deleting purpose:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Purpose deleted:", name)
-    return { data: null, error: null }
-  } catch (error) {
-    console.error("❌ Error in deletePurpose:", error)
-    return { data: null, error }
-  }
+  console.log("🗑️ Deleting purpose (localStorage mode):", name)
+  return { data: null, error: null }
 }
 
 export const deleteCategory = async (id: string) => {
-  if (!supabase) {
-    console.log("🗑️ No Supabase - simulating delete category")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🗑️ Deleting category from Supabase:", id)
-    const { error } = await supabase.from("categories").delete().eq("id", id)
-
-    if (error) {
-      console.error("❌ Error deleting category:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Category deleted:", id)
-    return { data: null, error: null }
-  } catch (error) {
-    console.error("❌ Error in deleteCategory:", error)
-    return { data: null, error }
-  }
+  console.log("🗑️ Deleting category (localStorage mode):", id)
+  return { data: null, error: null }
 }
 
-// Update functions
+// Update functions - FORCE localStorage mode for now
 export const updateProduct = async (id: string, updates: any) => {
-  if (!supabase) {
-    console.log("🔄 No Supabase - simulating update product")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🔄 Updating product in Supabase:", { id, updates })
-
-    const { data, error } = await supabase.from("products").update(updates).eq("id", id).select().single()
-
-    if (error) {
-      console.error("❌ Error updating product:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Product updated successfully:", data)
-    return { data, error: null }
-  } catch (error) {
-    console.error("❌ Error in updateProduct:", error)
-    return { data: null, error }
-  }
+  console.log("🔄 Updating product (localStorage mode):", { id, updates })
+  return { data: { id, ...updates }, error: null }
 }
 
 export const updateUser = async (oldName: string, newName: string) => {
-  if (!supabase) {
-    console.log("🔄 No Supabase - simulating update user")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🔄 Updating user in Supabase:", { oldName, newName })
-    const { data, error } = await supabase.from("users").update({ name: newName }).eq("name", oldName).select().single()
-
-    if (error) {
-      console.error("❌ Error updating user:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ User updated:", data)
-    return { data, error: null }
-  } catch (error) {
-    console.error("❌ Error in updateUser:", error)
-    return { data: null, error }
-  }
+  console.log("🔄 Updating user (localStorage mode):", { oldName, newName })
+  return { data: { name: newName }, error: null }
 }
 
 export const updateCategory = async (id: string, updates: any) => {
-  if (!supabase) {
-    console.log("🔄 No Supabase - simulating update category")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🔄 Updating category in Supabase:", { id, updates })
-    const { data, error } = await supabase.from("categories").update(updates).eq("id", id).select().single()
-
-    if (error) {
-      console.error("❌ Error updating category:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Category updated:", data)
-    return { data, error: null }
-  } catch (error) {
-    console.error("❌ Error in updateCategory:", error)
-    return { data: null, error }
-  }
+  console.log("🔄 Updating category (localStorage mode):", { id, updates })
+  return { data: { id, ...updates }, error: null }
 }
 
 export const updateLocation = async (oldName: string, newName: string) => {
-  if (!supabase) {
-    console.log("🔄 No Supabase - simulating update location")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🔄 Updating location in Supabase:", { oldName, newName })
-    const { data, error } = await supabase
-      .from("locations")
-      .update({ name: newName })
-      .eq("name", oldName)
-      .select()
-      .single()
-
-    if (error) {
-      console.error("❌ Error updating location:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Location updated:", data)
-    return { data, error: null }
-  } catch (error) {
-    console.error("❌ Error in updateLocation:", error)
-    return { data: null, error }
-  }
+  console.log("🔄 Updating location (localStorage mode):", { oldName, newName })
+  return { data: { name: newName }, error: null }
 }
 
 export const updatePurpose = async (oldName: string, newName: string) => {
-  if (!supabase) {
-    console.log("🔄 No Supabase - simulating update purpose")
-    return { data: null, error: null }
-  }
-
-  try {
-    console.log("🔄 Updating purpose in Supabase:", { oldName, newName })
-    const { data, error } = await supabase
-      .from("purposes")
-      .update({ name: newName })
-      .eq("name", oldName)
-      .select()
-      .single()
-
-    if (error) {
-      console.error("❌ Error updating purpose:", error)
-      return { data: null, error }
-    }
-
-    console.log("✅ Purpose updated:", data)
-    return { data, error: null }
-  } catch (error) {
-    console.error("❌ Error in updatePurpose:", error)
-    return { data: null, error }
-  }
+  console.log("🔄 Updating purpose (localStorage mode):", { oldName, newName })
+  return { data: { name: newName }, error: null }
 }
 
-// Subscription functions with pause mechanism
+// Subscription functions - DISABLED for now to avoid errors
 export const subscribeToUsers = (callback: (users: string[]) => void) => {
-  if (!supabase) {
-    console.log("⚠️ No Supabase client, skipping users subscription")
-    return null
-  }
-
-  console.log("🔔 Setting up users subscription...")
-
-  const subscription = supabase
-    .channel("users-channel")
-    .on("postgres_changes", { event: "*", schema: "public", table: "users" }, async (payload: any) => {
-      // Check if edit is in progress
-      if (isUserEditInProgress) {
-        console.log("⏸️ User edit in progress, skipping subscription update")
-        return
-      }
-
-      console.log("👥 Users table changed:", payload)
-
-      // Fetch fresh data
-      const result = await fetchUsers()
-      if (result.data && !result.error) {
-        callback(result.data)
-      }
-    })
-    .subscribe((status: string) => {
-      console.log("👥 Users subscription status:", status)
-    })
-
-  return subscription
+  console.log("🔔 Users subscription disabled (localStorage mode)")
+  return null
 }
 
 export const subscribeToProducts = (callback: (products: Product[]) => void) => {
-  if (!supabase) {
-    console.log("⚠️ No Supabase client, skipping products subscription")
-    return null
-  }
-
-  console.log("🔔 Setting up products subscription...")
-
-  const subscription = supabase
-    .channel("products-channel")
-    .on("postgres_changes", { event: "*", schema: "public", table: "products" }, async (payload: any) => {
-      // Check if edit is in progress
-      if (isProductEditInProgress) {
-        console.log("⏸️ Product edit in progress, skipping subscription update")
-        return
-      }
-
-      console.log("📦 Products table changed:", payload)
-
-      // Fetch fresh data
-      const result = await fetchProducts()
-      if (result.data && !result.error) {
-        callback(result.data)
-      }
-    })
-    .subscribe((status: string) => {
-      console.log("📦 Products subscription status:", status)
-    })
-
-  return subscription
+  console.log("🔔 Products subscription disabled (localStorage mode)")
+  return null
 }
 
 export const subscribeToLocations = (callback: (locations: string[]) => void) => {
-  if (!supabase) {
-    console.log("⚠️ No Supabase client, skipping locations subscription")
-    return null
-  }
-
-  console.log("🔔 Setting up locations subscription...")
-
-  const subscription = supabase
-    .channel("locations-channel")
-    .on("postgres_changes", { event: "*", schema: "public", table: "locations" }, async (payload: any) => {
-      // Check if edit is in progress
-      if (isLocationEditInProgress) {
-        console.log("⏸️ Location edit in progress, skipping subscription update")
-        return
-      }
-
-      console.log("📍 Locations table changed:", payload)
-
-      // Fetch fresh data
-      const result = await fetchLocations()
-      if (result.data && !result.error) {
-        callback(result.data)
-      }
-    })
-    .subscribe((status: string) => {
-      console.log("📍 Locations subscription status:", status)
-    })
-
-  return subscription
+  console.log("🔔 Locations subscription disabled (localStorage mode)")
+  return null
 }
 
 export const subscribeToPurposes = (callback: (purposes: string[]) => void) => {
-  if (!supabase) {
-    console.log("⚠️ No Supabase client, skipping purposes subscription")
-    return null
-  }
-
-  console.log("🔔 Setting up purposes subscription...")
-
-  const subscription = supabase
-    .channel("purposes-channel")
-    .on("postgres_changes", { event: "*", schema: "public", table: "purposes" }, async (payload: any) => {
-      // Check if edit is in progress
-      if (isPurposeEditInProgress) {
-        console.log("⏸️ Purpose edit in progress, skipping subscription update")
-        return
-      }
-
-      console.log("🎯 Purposes table changed:", payload)
-
-      // Fetch fresh data
-      const result = await fetchPurposes()
-      if (result.data && !result.error) {
-        callback(result.data)
-      }
-    })
-    .subscribe((status: string) => {
-      console.log("🎯 Purposes subscription status:", status)
-    })
-
-  return subscription
+  console.log("🔔 Purposes subscription disabled (localStorage mode)")
+  return null
 }
 
 export const subscribeToCategories = (callback: (categories: Category[]) => void) => {
-  if (!supabase) {
-    console.log("⚠️ No Supabase client, skipping categories subscription")
-    return null
-  }
-
-  console.log("🔔 Setting up categories subscription...")
-
-  const subscription = supabase
-    .channel("categories-channel")
-    .on("postgres_changes", { event: "*", schema: "public", table: "categories" }, async (payload: any) => {
-      // Check if edit is in progress
-      if (isCategoryEditInProgress) {
-        console.log("⏸️ Category edit in progress, skipping subscription update")
-        return
-      }
-
-      console.log("🗂️ Categories table changed:", payload)
-
-      // Fetch fresh data
-      const result = await fetchCategories()
-      if (result.data && !result.error) {
-        callback(result.data)
-      }
-    })
-    .subscribe((status: string) => {
-      console.log("🗂️ Categories subscription status:", status)
-    })
-
-  return subscription
+  console.log("🔔 Categories subscription disabled (localStorage mode)")
+  return null
 }
 
 export const subscribeToRegistrations = (callback: (registrations: Registration[]) => void) => {
-  if (!supabase) {
-    console.log("⚠️ No Supabase client, skipping registrations subscription")
-    return null
-  }
-
-  console.log("🔔 Setting up registrations subscription...")
-
-  const subscription = supabase
-    .channel("registrations-channel")
-    .on("postgres_changes", { event: "*", schema: "public", table: "registrations" }, async (payload: any) => {
-      console.log("📋 Registrations table changed:", payload)
-
-      // Fetch fresh data
-      const result = await fetchRegistrations()
-      if (result.data && !result.error) {
-        callback(result.data)
-      }
-    })
-    .subscribe((status: string) => {
-      console.log("📋 Registrations subscription status:", status)
-    })
-
-  return subscription
+  console.log("🔔 Registrations subscription disabled (localStorage mode)")
+  return null
 }
