@@ -143,6 +143,15 @@ export default function ProductRegistrationApp() {
   const [qrScanResult, setQrScanResult] = useState("")
   const [qrScanMode, setQrScanMode] = useState<"registration" | "product-management">("registration")
 
+  // History filtering states
+  const [historySearchQuery, setHistorySearchQuery] = useState("")
+  const [selectedHistoryUser, setSelectedHistoryUser] = useState("all")
+  const [selectedHistoryLocation, setSelectedHistoryLocation] = useState("all")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+  const [sortBy, setSortBy] = useState("date")
+  const [sortOrder, setSortOrder] = useState("newest")
+
   // Load data on component mount
   useEffect(() => {
     loadAllData()
@@ -894,6 +903,73 @@ export default function ProductRegistrationApp() {
     }
   }
 
+  // Function to get filtered and sorted registrations
+  const getFilteredAndSortedRegistrations = () => {
+    const filtered = registrations.filter((registration) => {
+      // Search filter
+      if (historySearchQuery) {
+        const searchLower = historySearchQuery.toLowerCase()
+        const matchesSearch =
+          registration.user.toLowerCase().includes(searchLower) ||
+          registration.product.toLowerCase().includes(searchLower) ||
+          registration.location.toLowerCase().includes(searchLower) ||
+          registration.purpose.toLowerCase().includes(searchLower) ||
+          (registration.qrcode && registration.qrcode.toLowerCase().includes(searchLower))
+
+        if (!matchesSearch) return false
+      }
+
+      // User filter
+      if (selectedHistoryUser !== "all" && registration.user !== selectedHistoryUser) {
+        return false
+      }
+
+      // Location filter
+      if (selectedHistoryLocation !== "all" && registration.location !== selectedHistoryLocation) {
+        return false
+      }
+
+      // Date range filter
+      const registrationDate = new Date(registration.timestamp).toISOString().split("T")[0]
+
+      if (dateFrom && registrationDate < dateFrom) {
+        return false
+      }
+
+      if (dateTo && registrationDate > dateTo) {
+        return false
+      }
+
+      return true
+    })
+
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      let comparison = 0
+
+      switch (sortBy) {
+        case "date":
+          comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          break
+        case "user":
+          comparison = a.user.localeCompare(b.user, "nl", { sensitivity: "base" })
+          break
+        case "product":
+          comparison = a.product.localeCompare(b.product, "nl", { sensitivity: "base" })
+          break
+        case "location":
+          comparison = a.location.localeCompare(b.location, "nl", { sensitivity: "base" })
+          break
+        default:
+          comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      }
+
+      return sortOrder === "newest" ? -comparison : comparison
+    })
+
+    return filtered
+  }
+
   // Function to get filtered and sorted users
   const getFilteredAndSortedUsers = () => {
     return users
@@ -1571,39 +1647,241 @@ export default function ProductRegistrationApp() {
             <Card className="shadow-sm">
               <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
                 <CardTitle className="flex items-center gap-2 text-xl">📋 Registratie Geschiedenis</CardTitle>
-                <CardDescription>Bekijk alle product registraties</CardDescription>
+                <CardDescription>Bekijk en filter alle product registraties</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Datum</TableHead>
-                      <TableHead>Gebruiker</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Locatie</TableHead>
-                      <TableHead>Doel</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registrations.length === 0 ? (
+                {/* Filters Section */}
+                <div className="space-y-4 mb-6">
+                  {/* Search and User/Location filters */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Zoeken</Label>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                        <Input
+                          type="text"
+                          placeholder="Zoek op naam, product, locatie..."
+                          value={historySearchQuery}
+                          onChange={(e) => setHistorySearchQuery(e.target.value)}
+                          className="pl-8"
+                        />
+                        {historySearchQuery && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-6 w-6 p-0"
+                            onClick={() => setHistorySearchQuery("")}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Gebruiker</Label>
+                      <Select value={selectedHistoryUser} onValueChange={setSelectedHistoryUser}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Alle gebruikers" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Alle gebruikers</SelectItem>
+                          {users.map((user) => (
+                            <SelectItem key={user} value={user}>
+                              {user}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Locatie</Label>
+                      <Select value={selectedHistoryLocation} onValueChange={setSelectedHistoryLocation}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Alle locaties" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Alle locaties</SelectItem>
+                          {locations.map((location) => (
+                            <SelectItem key={location} value={location}>
+                              {location}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Date range and sorting */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Datum vanaf</Label>
+                      <Input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        placeholder="dd/mm/jjjj"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Datum tot</Label>
+                      <Input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        placeholder="dd/mm/jjjj"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Sorteer op</Label>
+                      <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="date">Datum</SelectItem>
+                          <SelectItem value="user">Gebruiker</SelectItem>
+                          <SelectItem value="product">Product</SelectItem>
+                          <SelectItem value="location">Locatie</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Volgorde</Label>
+                      <Select value={sortOrder} onValueChange={setSortOrder}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newest">Nieuwste eerst</SelectItem>
+                          <SelectItem value="oldest">Oudste eerst</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setHistorySearchQuery("")
+                        setSelectedHistoryUser("all")
+                        setSelectedHistoryLocation("all")
+                        setDateFrom("")
+                        setDateTo("")
+                        setSortBy("date")
+                        setSortOrder("newest")
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Wis filters
+                    </Button>
+
+                    <Button
+                      onClick={() => {
+                        // Export functionality - for now just show message
+                        setImportMessage("✅ Export functionaliteit komt binnenkort!")
+                        setTimeout(() => setImportMessage(""), 3000)
+                      }}
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      Exporteren naar CSV
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Results count */}
+                <div className="text-sm text-gray-600 mb-4">
+                  {getFilteredAndSortedRegistrations().length} van {registrations.length} registraties
+                  {(historySearchQuery ||
+                    selectedHistoryUser !== "all" ||
+                    selectedHistoryLocation !== "all" ||
+                    dateFrom ||
+                    dateTo) &&
+                    " (gefilterd)"}
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                          Geen registraties beschikbaar
-                        </TableCell>
+                        <TableHead>Datum</TableHead>
+                        <TableHead>Tijd</TableHead>
+                        <TableHead>Gebruiker</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead>QR Code</TableHead>
+                        <TableHead>Categorie</TableHead>
+                        <TableHead>Locatie</TableHead>
+                        <TableHead>Doel</TableHead>
                       </TableRow>
-                    ) : (
-                      registrations.map((registration) => (
-                        <TableRow key={registration.id}>
-                          <TableCell>{new Date(registration.timestamp).toLocaleDateString("nl-NL")}</TableCell>
-                          <TableCell>{registration.user}</TableCell>
-                          <TableCell>{registration.product}</TableCell>
-                          <TableCell>{registration.location}</TableCell>
-                          <TableCell>{registration.purpose}</TableCell>
+                    </TableHeader>
+                    <TableBody>
+                      {getFilteredAndSortedRegistrations().length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                            {registrations.length === 0
+                              ? "Geen registraties beschikbaar"
+                              : "Geen registraties gevonden met de huidige filters"}
+                          </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        getFilteredAndSortedRegistrations().map((registration) => {
+                          const registrationDate = new Date(registration.timestamp)
+                          const product = products.find((p) => p.name === registration.product)
+                          const category = product?.categoryId
+                            ? categories.find((c) => c.id === product.categoryId)
+                            : null
+
+                          return (
+                            <TableRow key={registration.id}>
+                              <TableCell>{registrationDate.toLocaleDateString("nl-NL")}</TableCell>
+                              <TableCell>
+                                {registrationDate.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
+                              </TableCell>
+                              <TableCell>{registration.user}</TableCell>
+                              <TableCell>{registration.product}</TableCell>
+                              <TableCell>
+                                {registration.qrcode ? (
+                                  <Badge variant="outline" className="font-mono text-xs">
+                                    {registration.qrcode}
+                                  </Badge>
+                                ) : (
+                                  "-"
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {category ? (
+                                  <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200">
+                                    {category.name}
+                                  </Badge>
+                                ) : (
+                                  "-"
+                                )}
+                              </TableCell>
+                              <TableCell>{registration.location}</TableCell>
+                              <TableCell>{registration.purpose}</TableCell>
+                            </TableRow>
+                          )
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
