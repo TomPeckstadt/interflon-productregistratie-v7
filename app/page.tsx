@@ -40,6 +40,7 @@ import {
   subscribeToCategories,
   subscribeToRegistrations,
   isSupabaseConfigured,
+  updatePurpose,
 } from "@/lib/supabase"
 
 // Types
@@ -1737,10 +1738,27 @@ export default function ProductRegistrationApp() {
                 Annuleren
               </Button>
               <Button
-                onClick={() => {
-                  // Note: Purpose editing would require more complex logic for Supabase
-                  setImportMessage("✅ Doel bijgewerkt!")
-                  setTimeout(() => setImportMessage(""), 2000)
+                onClick={async () => {
+                  if (editingPurpose) {
+                    const originalPurpose = purposes.find((p) => p === editingPurpose)
+                    if (originalPurpose && originalPurpose !== editingPurpose) {
+                      if (isSupabaseConnected) {
+                        const result = await updatePurpose(originalPurpose, editingPurpose)
+                        if (!result.error) {
+                          const { data: refreshedPurposes } = await fetchPurposes()
+                          if (refreshedPurposes) {
+                            setPurposes(refreshedPurposes)
+                          }
+                          setImportMessage("✅ Doel bijgewerkt!")
+                          setTimeout(() => setImportMessage(""), 2000)
+                        }
+                      } else {
+                        setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose : p)))
+                        setImportMessage("✅ Doel bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                      }
+                    }
+                  }
                   setShowEditPurposeDialog(false)
                   setEditingPurpose(null)
                 }}
