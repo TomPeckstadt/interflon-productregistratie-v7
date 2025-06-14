@@ -28,6 +28,9 @@ import {
   savePurpose,
   saveCategory,
   saveRegistration,
+  updateUser,
+  updateLocation,
+  updatePurpose,
   deleteUser,
   deleteProduct,
   deleteLocation,
@@ -109,10 +112,13 @@ export default function ProductRegistrationApp() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [showEditCategoryDialog, setShowEditCategoryDialog] = useState(false)
   const [editingUser, setEditingUser] = useState<string | null>(null)
+  const [originalUser, setOriginalUser] = useState<string | null>(null)
   const [showEditUserDialog, setShowEditUserDialog] = useState(false)
   const [editingLocation, setEditingLocation] = useState<string | null>(null)
+  const [originalLocation, setOriginalLocation] = useState<string | null>(null)
   const [showEditLocationDialog, setShowEditLocationDialog] = useState(false)
   const [editingPurpose, setEditingPurpose] = useState<string | null>(null)
+  const [originalPurpose, setOriginalPurpose] = useState<string | null>(null)
   const [showEditPurposeDialog, setShowEditPurposeDialog] = useState(false)
 
   // Filter states
@@ -1133,6 +1139,7 @@ export default function ProductRegistrationApp() {
                                   size="icon"
                                   onClick={() => {
                                     setEditingUser(user)
+                                    setOriginalUser(user)
                                     setShowEditUserDialog(true)
                                   }}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
@@ -1385,6 +1392,7 @@ export default function ProductRegistrationApp() {
                                   size="icon"
                                   onClick={() => {
                                     setEditingLocation(location)
+                                    setOriginalLocation(location)
                                     setShowEditLocationDialog(true)
                                   }}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
@@ -1456,6 +1464,7 @@ export default function ProductRegistrationApp() {
                                   size="icon"
                                   onClick={() => {
                                     setEditingPurpose(purpose)
+                                    setOriginalPurpose(purpose)
                                     setShowEditPurposeDialog(true)
                                   }}
                                   className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
@@ -1648,7 +1657,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit User Dialog */}
-      {showEditUserDialog && editingUser && (
+      {showEditUserDialog && editingUser && originalUser && (
         <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1666,12 +1675,22 @@ export default function ProductRegistrationApp() {
                 Annuleren
               </Button>
               <Button
-                onClick={() => {
-                  // Note: User editing would require more complex logic for Supabase
-                  setImportMessage("✅ Gebruiker bijgewerkt!")
-                  setTimeout(() => setImportMessage(""), 2000)
+                onClick={async () => {
+                  if (isSupabaseConnected) {
+                    const result = await updateUser(originalUser, editingUser)
+                    if (!result.error) {
+                      setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser : u)))
+                      setImportMessage("✅ Gebruiker bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
+                    }
+                  } else {
+                    setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser : u)))
+                    setImportMessage("✅ Gebruiker bijgewerkt!")
+                    setTimeout(() => setImportMessage(""), 2000)
+                  }
                   setShowEditUserDialog(false)
                   setEditingUser(null)
+                  setOriginalUser(null)
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
@@ -1731,7 +1750,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit Location Dialog */}
-      {showEditLocationDialog && editingLocation && (
+      {showEditLocationDialog && editingLocation && originalLocation && (
         <Dialog open={showEditLocationDialog} onOpenChange={setShowEditLocationDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1753,12 +1772,22 @@ export default function ProductRegistrationApp() {
                 Annuleren
               </Button>
               <Button
-                onClick={() => {
-                  // Note: Location editing would require more complex logic for Supabase
-                  setImportMessage("✅ Locatie bijgewerkt!")
-                  setTimeout(() => setImportMessage(""), 2000)
+                onClick={async () => {
+                  if (isSupabaseConnected) {
+                    const result = await updateLocation(originalLocation, editingLocation)
+                    if (!result.error) {
+                      setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation : l)))
+                      setImportMessage("✅ Locatie bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
+                    }
+                  } else {
+                    setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation : l)))
+                    setImportMessage("✅ Locatie bijgewerkt!")
+                    setTimeout(() => setImportMessage(""), 2000)
+                  }
                   setShowEditLocationDialog(false)
                   setEditingLocation(null)
+                  setOriginalLocation(null)
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
@@ -1770,7 +1799,7 @@ export default function ProductRegistrationApp() {
       )}
 
       {/* Edit Purpose Dialog */}
-      {showEditPurposeDialog && editingPurpose && (
+      {showEditPurposeDialog && editingPurpose && originalPurpose && (
         <Dialog open={showEditPurposeDialog} onOpenChange={setShowEditPurposeDialog}>
           <DialogContent>
             <DialogHeader>
@@ -1792,12 +1821,22 @@ export default function ProductRegistrationApp() {
                 Annuleren
               </Button>
               <Button
-                onClick={() => {
-                  // Note: Purpose editing would require more complex logic for Supabase
-                  setImportMessage("✅ Doel bijgewerkt!")
-                  setTimeout(() => setImportMessage(""), 2000)
+                onClick={async () => {
+                  if (isSupabaseConnected) {
+                    const result = await updatePurpose(originalPurpose, editingPurpose)
+                    if (!result.error) {
+                      setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose : p)))
+                      setImportMessage("✅ Doel bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
+                    }
+                  } else {
+                    setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose : p)))
+                    setImportMessage("✅ Doel bijgewerkt!")
+                    setTimeout(() => setImportMessage(""), 2000)
+                  }
                   setShowEditPurposeDialog(false)
                   setEditingPurpose(null)
+                  setOriginalPurpose(null)
                 }}
                 className="bg-amber-600 hover:bg-amber-700"
               >
