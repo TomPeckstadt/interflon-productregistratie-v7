@@ -187,7 +187,7 @@ export default function ProductRegistrationApp() {
             users: { success: !usersResult.error, count: usersResult.data?.length || 0 },
             products: { success: !productsResult.error, count: productsResult.data?.length || 0 },
             locations: { success: !locationsResult.error, count: locationsResult.data?.length || 0 },
-            purposes: { success: !purposesResult.error, count: purposesResult.data?.length || 0 },
+            purposes: { success: !purposesResult.error, count: productsResult.data?.length || 0 },
             categories: { success: !categoriesResult.error, count: categoriesResult.data?.length || 0 },
           })
 
@@ -670,6 +670,102 @@ export default function ProductRegistrationApp() {
     }
 
     setShowEditPurposeDialog(false)
+  }
+
+  // Attachment handlers
+  const handleAttachmentUpload = async (product: Product, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== "application/pdf") {
+      setImportError("Alleen PDF bestanden zijn toegestaan")
+      setTimeout(() => setImportError(""), 3000)
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      // 10MB limit
+      setImportError("Bestand is te groot (max 10MB)")
+      setTimeout(() => setImportError(""), 3000)
+      return
+    }
+
+    try {
+      console.log("📎 Uploading attachment for product:", product.name)
+
+      // For demo purposes, we'll create a blob URL
+      // In production, you would upload to Supabase Storage or another service
+      const attachmentUrl = URL.createObjectURL(file)
+
+      const updateData = {
+        name: product.name,
+        qr_code: product.qrcode || null,
+        category_id: product.categoryId ? Number.parseInt(product.categoryId) : null,
+        attachment_url: attachmentUrl,
+        attachment_name: file.name,
+      }
+
+      const result = await updateProduct(product.id, updateData)
+
+      if (result.error) {
+        console.error("❌ Error uploading attachment:", result.error)
+        setImportError("Fout bij uploaden bijlage")
+        setTimeout(() => setImportError(""), 3000)
+      } else {
+        console.log("✅ Attachment uploaded successfully")
+        setImportMessage("✅ Bijlage toegevoegd!")
+        setTimeout(() => setImportMessage(""), 2000)
+
+        // Force refresh products
+        const refreshResult = await fetchProducts()
+        if (refreshResult.data) {
+          setProducts(refreshResult.data)
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error uploading attachment:", error)
+      setImportError("Fout bij uploaden bijlage")
+      setTimeout(() => setImportError(""), 3000)
+    }
+
+    // Reset file input
+    event.target.value = ""
+  }
+
+  const handleRemoveAttachment = async (product: Product) => {
+    try {
+      console.log("🗑️ Removing attachment for product:", product.name)
+
+      const updateData = {
+        name: product.name,
+        qr_code: product.qrcode || null,
+        category_id: product.categoryId ? Number.parseInt(product.categoryId) : null,
+        attachment_url: null,
+        attachment_name: null,
+      }
+
+      const result = await updateProduct(product.id, updateData)
+
+      if (result.error) {
+        console.error("❌ Error removing attachment:", result.error)
+        setImportError("Fout bij verwijderen bijlage")
+        setTimeout(() => setImportError(""), 3000)
+      } else {
+        console.log("✅ Attachment removed successfully")
+        setImportMessage("✅ Bijlage verwijderd!")
+        setTimeout(() => setImportMessage(""), 2000)
+
+        // Force refresh products
+        const refreshResult = await fetchProducts()
+        if (refreshResult.data) {
+          setProducts(refreshResult.data)
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error removing attachment:", error)
+      setImportError("Fout bij verwijderen bijlage")
+      setTimeout(() => setImportError(""), 3000)
+    }
   }
 
   // Add functions
@@ -1377,13 +1473,14 @@ export default function ProductRegistrationApp() {
                         <TableHead>Naam</TableHead>
                         <TableHead>QR Code</TableHead>
                         <TableHead>Categorie</TableHead>
+                        <TableHead>Bijlage</TableHead>
                         <TableHead className="text-right">Acties</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {products.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                             Geen producten beschikbaar
                           </TableCell>
                         </TableRow>
@@ -1408,6 +1505,66 @@ export default function ProductRegistrationApp() {
                               ) : (
                                 "-"
                               )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {product.attachmentUrl ? (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => window.open(product.attachmentUrl, "_blank")}
+                                      className="text-green-600 hover:text-green-700 hover:bg-green-50 p-1 h-8 w-8"
+                                      title={`Open ${product.attachmentName || "bijlage"}`}
+                                    >
+                                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    </Button>
+                                    <span className="text-xs text-green-600 font-medium">PDF</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleRemoveAttachment(product)}
+                                      className="text-green-600 hover:text-red-600 hover:bg-red-50 p-1 h-8 w-8"
+                                      title="Bijlage verwijderen"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <input
+                                      type="file"
+                                      accept=".pdf"
+                                      onChange={(e) => handleAttachmentUpload(product, e)}
+                                      className="hidden"
+                                      id={`file-upload-${product.id}`}
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => document.getElementById(`file-upload-${product.id}`)?.click()}
+                                      className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 p-1 h-8 w-8"
+                                      title="Bijlage toevoegen"
+                                    >
+                                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                                        />
+                                      </svg>
+                                    </Button>
+                                    <span className="text-xs text-gray-500">PDF</span>
+                                  </>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
