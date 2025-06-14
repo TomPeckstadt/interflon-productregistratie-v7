@@ -624,6 +624,7 @@ export default function ProductRegistrationApp() {
     }
 
     console.log("💾 Saving purpose changes:", { original: originalPurpose, edited: editingPurpose.trim() })
+    console.log("🔍 Current purposes before update:", purposes)
 
     const result = await updatePurpose(originalPurpose, editingPurpose.trim())
 
@@ -635,14 +636,19 @@ export default function ProductRegistrationApp() {
       console.log("✅ Purpose updated successfully")
       setImportMessage("✅ Doel bijgewerkt!")
       setTimeout(() => setImportMessage(""), 2000)
-      // Real-time subscription will update the UI automatically
 
-      // FORCE LOCAL STATE UPDATE
+      // FORCE LOCAL STATE UPDATE WITH DEBUGGING
       console.log("🔄 Forcing local purposes refresh...")
       const refreshResult = await fetchPurposes()
+      console.log("🔍 Refresh result:", refreshResult)
+
       if (refreshResult.data) {
         console.log("🔄 Updating local purposes state...")
+        console.log("🔍 New purposes data:", refreshResult.data)
         setPurposes(refreshResult.data)
+        console.log("✅ Local purposes state updated")
+      } else {
+        console.log("❌ No data in refresh result")
       }
     }
 
