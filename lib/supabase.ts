@@ -146,6 +146,31 @@ export interface RegistrationEntry {
   created_at?: string
 }
 
+// Helper functions voor category mapping
+const getCategoryIdFromName = (categoryName: string | null): string | undefined => {
+  if (!categoryName) return undefined
+
+  const mapping: { [key: string]: string } = {
+    Smeermiddelen: "1",
+    Reinigers: "2",
+    Onderhoud: "3",
+  }
+
+  return mapping[categoryName]
+}
+
+const getCategoryNameFromId = (categoryId: string | undefined): string | null => {
+  if (!categoryId) return null
+
+  const mapping: { [key: string]: string } = {
+    "1": "Smeermiddelen",
+    "2": "Reinigers",
+    "3": "Onderhoud",
+  }
+
+  return mapping[categoryId] || null
+}
+
 // Mock data voor fallback
 const mockCategories: Category[] = [
   { id: "1", name: "Smeermiddelen" },
@@ -157,12 +182,12 @@ const mockUsers = ["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van 
 const mockLocations = ["Magazijn A", "Productielijn 1", "Productielijn 2", "Onderhoud werkplaats", "Kantoor"]
 const mockPurposes = ["Preventief onderhoud", "Reparatie", "Reiniging", "Smering", "Inspectie"]
 const mockProducts: Product[] = [
-  { id: "1", name: "Interflon Fin Super", qr_code: "IFS001", category: "Smeermiddelen" },
-  { id: "2", name: "Interflon Grease MP2", qr_code: "IGM002", category: "Smeermiddelen" },
-  { id: "3", name: "Interflon Cleaner", qr_code: "IC003", category: "Reinigers" },
-  { id: "4", name: "Interflon Lube", qr_code: "IL004", category: "Smeermiddelen" },
-  { id: "5", name: "Interflon Spray", qr_code: "IS005", category: "Smeermiddelen" },
-  { id: "6", name: "Interflon Degreaser", qr_code: "ID006", category: "Reinigers" },
+  { id: "1", name: "Interflon Fin Super", qr_code: "IFS001", category: "Smeermiddelen", categoryId: "1" },
+  { id: "2", name: "Interflon Grease MP2", qr_code: "IGM002", category: "Smeermiddelen", categoryId: "1" },
+  { id: "3", name: "Interflon Cleaner", qr_code: "IC003", category: "Reinigers", categoryId: "2" },
+  { id: "4", name: "Interflon Lube", qr_code: "IL004", category: "Smeermiddelen", categoryId: "1" },
+  { id: "5", name: "Interflon Spray", qr_code: "IS005", category: "Smeermiddelen", categoryId: "1" },
+  { id: "6", name: "Interflon Degreaser", qr_code: "ID006", category: "Reinigers", categoryId: "2" },
 ]
 
 // ===== PRODUCT FUNCTIONALITEIT =====
@@ -186,17 +211,30 @@ export async function fetchProducts() {
       return { data: mockProducts, error: null }
     }
 
-    // Map de data naar het verwachte formaat
-    const mappedProducts =
-      data?.map((product) => ({
-        id: product.id.toString(),
-        name: product.name,
-        qrcode: product.qr_code,
-        categoryId: product.category === "Smeermiddelen" ? "1" : product.category === "Reinigers" ? "2" : "3",
-        created_at: product.created_at,
-      })) || mockProducts
+    console.log("📦 Raw products from Supabase:", data)
 
-    console.log("📦 Products fetched:", mappedProducts.length)
+    // Map de data naar het verwachte formaat met correcte category mapping
+    const mappedProducts =
+      data?.map((product) => {
+        const categoryId = getCategoryIdFromName(product.category)
+
+        console.log("🔄 Mapping product:", {
+          name: product.name,
+          supabaseCategory: product.category,
+          mappedCategoryId: categoryId,
+        })
+
+        return {
+          id: product.id.toString(),
+          name: product.name,
+          qrcode: product.qr_code,
+          categoryId: categoryId,
+          category: product.category, // Keep original for reference
+          created_at: product.created_at,
+        }
+      }) || mockProducts
+
+    console.log("📦 Final mapped products:", mappedProducts)
     return { data: mappedProducts, error: null }
   } catch (error) {
     console.log("📦 Onverwachte fout bij ophalen producten - gebruik mock data:", error)
@@ -214,21 +252,19 @@ export async function saveProduct(product: Product) {
 
     const supabase = getSupabaseClient()
 
-    // Map categoryId naar category naam
-    const categoryName =
-      product.categoryId === "1"
-        ? "Smeermiddelen"
-        : product.categoryId === "2"
-          ? "Reinigers"
-          : product.categoryId === "3"
-            ? "Onderhoud"
-            : null
+    // Map categoryId naar category naam voor Supabase
+    const categoryName = getCategoryNameFromId(product.categoryId)
 
     const productData = {
       name: product.name,
       category: categoryName,
       qr_code: product.qrcode,
     }
+
+    console.log("💾 Saving product data to Supabase:", {
+      original: product,
+      mapped: productData,
+    })
 
     // Check if this is an update (has ID) or insert (new product)
     if (product.id && product.id !== Date.now().toString()) {
@@ -240,8 +276,24 @@ export async function saveProduct(product: Product) {
         return { data: product, error: null }
       }
 
-      console.log("✅ Product updated in Supabase")
-      return { data: data?.[0] || product, error: null }
+      console.log("✅ Product updated in Supabase:", data)
+
+      // Return the updated product with correct mapping
+      const updatedProduct = data?.[0]
+      if (updatedProduct) {
+        return {
+          data: {
+            id: updatedProduct.id.toString(),
+            name: updatedProduct.name,
+            qrcode: updatedProduct.qr_code,
+            categoryId: getCategoryIdFromName(updatedProduct.category),
+            category: updatedProduct.category,
+          },
+          error: null,
+        }
+      }
+
+      return { data: product, error: null }
     } else {
       // Insert new product
       const { data, error } = await supabase.from("products").insert([productData]).select()
@@ -252,7 +304,23 @@ export async function saveProduct(product: Product) {
         return { data: newProduct, error: null }
       }
 
-      console.log("✅ Product saved to Supabase")
+      console.log("✅ Product saved to Supabase:", data)
+
+      // Return the new product with correct mapping
+      const newProduct = data?.[0]
+      if (newProduct) {
+        return {
+          data: {
+            id: newProduct.id.toString(),
+            name: newProduct.name,
+            qrcode: newProduct.qr_code,
+            categoryId: getCategoryIdFromName(newProduct.category),
+            category: newProduct.category,
+          },
+          error: null,
+        }
+      }
+
       return { data: data?.[0] || null, error: null }
     }
   } catch (error) {
