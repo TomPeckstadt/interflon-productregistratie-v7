@@ -1982,7 +1982,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
               {/* Recent Activity */}
               {registrations.length > 0 && (
                 <Card className="shadow-sm">
-                  <CardHeader className="pb-4">
+                  <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b pb-4">
                     <CardTitle className="text-lg font-medium text-gray-900">Recente Activiteit</CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -2006,10 +2006,6 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                                   day: "2-digit",
                                   month: "2-digit",
                                   year: "numeric",
-                                })}{" "}
-                                {new Date(registration.timestamp).toLocaleTimeString("nl-NL", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
                                 })}
                               </TableCell>
                               <TableCell className="text-gray-900">{registration.user}</TableCell>
@@ -2022,305 +2018,75 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                   </CardContent>
                 </Card>
               )}
-
-              {/* Top 5 Statistics */}
-              {registrations.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-                  {/* Top 5 Gebruikers */}
-                  <Card className="shadow-sm">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Gebruikers</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-gray-600">Gebruiker</TableHead>
-                            <TableHead className="text-right text-gray-600">Aantal</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.entries(
-                            registrations.reduce(
-                              (acc, reg) => {
-                                acc[reg.user] = (acc[reg.user] || 0) + 1
-                                return acc
-                              },
-                              {} as Record<string, number>,
-                            ),
-                          )
-                            .sort(([, a], [, b]) => b - a)
-                            .slice(0, 5)
-                            .map(([user, count]) => (
-                              <TableRow key={user}>
-                                <TableCell className="text-gray-900">{user}</TableCell>
-                                <TableCell className="text-right text-gray-900 font-medium">{count}</TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-
-                  {/* Top 5 Producten */}
-                  <Card className="shadow-sm">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Producten</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-gray-600">Product</TableHead>
-                            <TableHead className="text-right text-gray-600">Aantal</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.entries(
-                            registrations.reduce(
-                              (acc, reg) => {
-                                acc[reg.product] = (acc[reg.product] || 0) + 1
-                                return acc
-                              },
-                              {} as Record<string, number>,
-                            ),
-                          )
-                            .sort(([, a], [, b]) => b - a)
-                            .slice(0, 5)
-                            .map(([product, count]) => (
-                              <TableRow key={product}>
-                                <TableCell className="text-gray-900">{product}</TableCell>
-                                <TableCell className="text-right text-gray-900 font-medium">{count}</TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-
-                  {/* Top 5 Locaties */}
-                  <Card className="shadow-sm">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Locaties</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-gray-600">Locatie</TableHead>
-                            <TableHead className="text-right text-gray-600">Aantal</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {Object.entries(
-                            registrations.reduce(
-                              (acc, reg) => {
-                                acc[reg.location] = (acc[reg.location] || 0) + 1
-                                return acc
-                              },
-                              {} as Record<string, number>,
-                            ),
-                          )
-                            .sort(([, a], [, b]) => b - a)
-                            .slice(0, 5)
-                            .map(([location, count]) => (
-                              <TableRow key={location}>
-                                <TableCell className="text-gray-900">{location}</TableCell>
-                                <TableCell className="text-right text-gray-900 font-medium">{count}</TableCell>
-                              </TableRow>
-                            ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-
-                  {/* Top 5 Producten with Pie Chart */}
-                  <Card className="shadow-sm">
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-lg font-medium text-gray-900">Top 5 Producten</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {/* Simple Pie Chart Representation */}
-                        <div className="flex justify-center">
-                          <div className="w-32 h-32 rounded-full relative overflow-hidden">
-                            {(() => {
-                              const productCounts = Object.entries(
-                                registrations.reduce(
-                                  (acc, reg) => {
-                                    acc[reg.product] = (acc[reg.product] || 0) + 1
-                                    return acc
-                                  },
-                                  {} as Record<string, number>,
-                                ),
-                              ).sort(([, a], [, b]) => b - a)
-
-                              const total = productCounts.reduce((sum, [, count]) => sum + count, 0)
-                              const colors = ["#ff9999", "#99ff99", "#9999ff", "#ffff99", "#ff99ff"]
-                              let currentAngle = 0
-
-                              return productCounts.slice(0, 5).map(([product, count], index) => {
-                                const percentage = (count / total) * 100
-                                const angle = (count / total) * 360
-                                const startAngle = currentAngle
-                                currentAngle += angle
-
-                                const x1 = 50 + 50 * Math.cos((startAngle * Math.PI) / 180)
-                                const y1 = 50 + 50 * Math.sin((startAngle * Math.PI) / 180)
-                                const x2 = 50 + 50 * Math.cos(((startAngle + angle) * Math.PI) / 180)
-                                const y2 = 50 + 50 * Math.sin(((startAngle + angle) * Math.PI) / 180)
-
-                                const largeArcFlag = angle > 180 ? 1 : 0
-
-                                return (
-                                  <svg key={product} className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
-                                    <path
-                                      d={`M 50 50 L ${x1} ${y1} A 50 50 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                                      fill={colors[index % colors.length]}
-                                      opacity="0.8"
-                                    />
-                                  </svg>
-                                )
-                              })
-                            })()}
-                          </div>
-                        </div>
-
-                        {/* Legend */}
-                        <div className="space-y-2">
-                          {Object.entries(
-                            registrations.reduce(
-                              (acc, reg) => {
-                                acc[reg.product] = (acc[reg.product] || 0) + 1
-                                return acc
-                              },
-                              {} as Record<string, number>,
-                            ),
-                          )
-                            .sort(([, a], [, b]) => b - a)
-                            .slice(0, 5)
-                            .map(([product, count], index) => {
-                              const colors = ["#ff9999", "#99ff99", "#9999ff", "#ffff99", "#ff99ff"]
-                              return (
-                                <div key={product} className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="w-3 h-3 rounded-full"
-                                      style={{ backgroundColor: colors[index % colors.length] }}
-                                    ></div>
-                                    <span className="text-gray-900 truncate max-w-[120px]" title={product}>
-                                      {product}
-                                    </span>
-                                  </div>
-                                  <span className="text-gray-900 font-medium">{count}</span>
-                                </div>
-                              )
-                            })}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Empty State */}
-              {registrations.length === 0 && (
-                <Card className="shadow-sm">
-                  <CardContent className="p-12 text-center">
-                    <div className="text-gray-400 mb-4">
-                      <div className="text-6xl mb-4">📊</div>
-                      <h3 className="text-xl font-semibold text-gray-600 mb-2">Nog geen statistieken beschikbaar</h3>
-                      <p className="text-gray-500">Registreer enkele producten om statistieken te zien</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </TabsContent>
         </Tabs>
 
-        {/* Edit Dialogs */}
+        {/* Edit Product Dialog */}
         <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Product Bewerken</DialogTitle>
-              <DialogDescription>Wijzig de productgegevens hieronder.</DialogDescription>
+              <DialogDescription>Pas de productnaam, QR code en categorie aan.</DialogDescription>
             </DialogHeader>
-            {editingProduct && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="edit-product-name">Product Naam</Label>
-                  <Input
-                    id="edit-product-name"
-                    value={editingProduct.name}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-product-qr">QR Code</Label>
-                  <Input
-                    id="edit-product-qr"
-                    value={editingProduct.qrcode || ""}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, qrcode: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-product-category">Categorie</Label>
-                  <Select
-                    value={editingProduct.categoryId || "none"}
-                    onValueChange={(value) =>
-                      setEditingProduct({ ...editingProduct, categoryId: value === "none" ? undefined : value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Geen categorie</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-                    Annuleren
-                  </Button>
-                  <Button onClick={handleSaveProduct}>Opslaan</Button>
-                </div>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Naam
+                </Label>
+                <Input
+                  id="name"
+                  value={editingProduct?.name || ""}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value } as Product)}
+                  className="col-span-3"
+                />
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Category Dialog */}
-        <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Categorie Bewerken</DialogTitle>
-              <DialogDescription>Wijzig de categorienaam hieronder.</DialogDescription>
-            </DialogHeader>
-            {editingCategory && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="edit-category-name">Categorienaam</Label>
-                  <Input
-                    id="edit-category-name"
-                    value={editingCategory.name}
-                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowEditCategoryDialog(false)}>
-                    Annuleren
-                  </Button>
-                  <Button onClick={handleSaveCategory}>Opslaan</Button>
-                </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="qr_code" className="text-right">
+                  QR Code
+                </Label>
+                <Input
+                  id="qr_code"
+                  value={editingProduct?.qrcode || ""}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, qrcode: e.target.value } as Product)}
+                  className="col-span-3"
+                />
               </div>
-            )}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="category" className="text-right">
+                  Categorie
+                </Label>
+                <Select
+                  value={editingProduct?.categoryId || "none"}
+                  onValueChange={(value) =>
+                    setEditingProduct({
+                      ...editingProduct,
+                      categoryId: value === "none" ? undefined : value,
+                    } as Product)
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Selecteer een categorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Geen categorie</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setShowEditDialog(false)}>
+                Annuleren
+              </Button>
+              <Button type="button" onClick={handleSaveProduct}>
+                Opslaan
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
 
@@ -2329,19 +2095,59 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Gebruiker Bewerken</DialogTitle>
-              <DialogDescription>Wijzig de gebruikersnaam hieronder.</DialogDescription>
+              <DialogDescription>Pas de naam van de gebruiker aan.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-user-name">Gebruikersnaam</Label>
-                <Input id="edit-user-name" value={editingUser} onChange={(e) => setEditingUser(e.target.value)} />
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Naam
+                </Label>
+                <Input
+                  id="name"
+                  value={editingUser || ""}
+                  onChange={(e) => setEditingUser(e.target.value)}
+                  className="col-span-3"
+                />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowEditUserDialog(false)}>
-                  Annuleren
-                </Button>
-                <Button onClick={handleSaveUser}>Opslaan</Button>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setShowEditUserDialog(false)}>
+                Annuleren
+              </Button>
+              <Button type="button" onClick={handleSaveUser}>
+                Opslaan
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Category Dialog */}
+        <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Categorie Bewerken</DialogTitle>
+              <DialogDescription>Pas de naam van de categorie aan.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Naam
+                </Label>
+                <Input
+                  id="name"
+                  value={editingCategory?.name || ""}
+                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value } as Category)}
+                  className="col-span-3"
+                />
               </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setShowEditCategoryDialog(false)}>
+                Annuleren
+              </Button>
+              <Button type="button" onClick={handleSaveCategory}>
+                Opslaan
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -2351,23 +2157,28 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Locatie Bewerken</DialogTitle>
-              <DialogDescription>Wijzig de locatienaam hieronder.</DialogDescription>
+              <DialogDescription>Pas de naam van de locatie aan.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-location-name">Locatienaam</Label>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Naam
+                </Label>
                 <Input
-                  id="edit-location-name"
-                  value={editingLocation}
+                  id="name"
+                  value={editingLocation || ""}
                   onChange={(e) => setEditingLocation(e.target.value)}
+                  className="col-span-3"
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowEditLocationDialog(false)}>
-                  Annuleren
-                </Button>
-                <Button onClick={handleSaveLocation}>Opslaan</Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setShowEditLocationDialog(false)}>
+                Annuleren
+              </Button>
+              <Button type="button" onClick={handleSaveLocation}>
+                Opslaan
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -2377,58 +2188,100 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Doel Bewerken</DialogTitle>
-              <DialogDescription>Wijzig het doel hieronder.</DialogDescription>
+              <DialogDescription>Pas de naam van het doel aan.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-purpose-name">Doel</Label>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Naam
+                </Label>
                 <Input
-                  id="edit-purpose-name"
-                  value={editingPurpose}
+                  id="name"
+                  value={editingPurpose || ""}
                   onChange={(e) => setEditingPurpose(e.target.value)}
+                  className="col-span-3"
                 />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowEditPurposeDialog(false)}>
-                  Annuleren
-                </Button>
-                <Button onClick={handleSavePurpose}>Opslaan</Button>
-              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setShowEditPurposeDialog(false)}>
+                Annuleren
+              </Button>
+              <Button type="button" onClick={handleSavePurpose}>
+                Opslaan
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* QR Scanner Modal */}
+        {/* QR Scanner */}
         {showQrScanner && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">QR Code Scanner</h3>
-                <Button variant="ghost" onClick={stopQrScanner}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="text-center">
-                <div className="bg-gray-100 h-64 flex items-center justify-center rounded-lg mb-4">
-                  <div className="text-gray-500">
-                    <QrCode className="h-16 w-16 mx-auto mb-2" />
-                    <p>QR Scanner zou hier komen</p>
-                    <p className="text-sm">Simulatie: klik hieronder</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Button onClick={() => handleQrCodeDetected("IFLS001")} className="w-full" variant="outline">
-                    Simuleer: IFLS001 (Interflon Fin Super)
-                  </Button>
-                  <Button onClick={() => handleQrCodeDetected("IFD003")} className="w-full" variant="outline">
-                    Simuleer: IFD003 (Interflon Degreaser)
-                  </Button>
-                </div>
-              </div>
+          <div className="fixed top-0 left-0 w-full h-full bg-gray-900 bg-opacity-80 z-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg p-4">
+              <QrScanner onResult={handleQrCodeDetected} onError={(error) => console.error(error)} />
+              <Button onClick={stopQrScanner} className="mt-4">
+                Stop Scanner
+              </Button>
             </div>
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// QR Scanner component
+interface QrScannerProps {
+  onResult: (result: string) => void
+  onError: (error: any) => void
+}
+
+const QrScanner: React.FC<QrScannerProps> = ({ onResult, onError }) => {
+  const [hasPermission, setHasPermission] = useState(null)
+  const [scanResult, setScanResult] = useState("")
+  const qrRef = useRef(null)
+
+  useEffect(() => {
+    ;(async () => {
+      const result = await navigator.permissions.query({ name: "camera" })
+      setHasPermission(result.state === "granted")
+
+      if (result.state === "prompt") {
+        navigator.mediaDevices
+          .getUserMedia({ video: true })
+          .then(() => setHasPermission(true))
+          .catch(() => setHasPermission(false))
+      }
+    })()
+  }, [])
+
+  const handleError = (err: any) => {
+    console.error(err)
+    onError(err)
+  }
+
+  const handleScan = (result: any) => {
+    if (result) {
+      setScanResult(result.text)
+      onResult(result.text)
+    }
+  }
+
+  if (hasPermission === null) {
+    return <p>Camera toestemming aanvragen...</p>
+  }
+
+  if (hasPermission === false) {
+    return <p>Geen camera toestemming.</p>
+  }
+
+  return (
+    <div>
+      <div style={{ position: "relative", width: "300px" }}>
+        <video ref={qrRef} style={{ width: "300px" }} />
+        <canvas style={{ display: "none" }} />
+      </div>
+      {scanResult ? <p>Resultaat: {scanResult}</p> : <p>Scannen...</p>}
     </div>
   )
 }
