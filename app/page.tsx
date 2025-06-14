@@ -347,7 +347,15 @@ export default function ProductRegistrationApp() {
         setTimeout(() => setImportError(""), 3000)
       } else {
         console.log("✅ Registration saved")
-        // Real-time subscription will update the UI automatically
+        // FORCE LOCAL STATE UPDATE
+        console.log("🔄 Forcing local registrations refresh...")
+        const refreshResult = await fetchRegistrations()
+        if (refreshResult.data) {
+          console.log("🔄 Updating local registrations state...")
+          setRegistrations(refreshResult.data)
+        }
+        setImportMessage("✅ Product geregistreerd!")
+        setTimeout(() => setImportMessage(""), 2000)
       }
 
       // Reset form
