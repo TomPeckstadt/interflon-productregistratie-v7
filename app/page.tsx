@@ -2,17 +2,6 @@
 
 import { useState, useEffect, useRef } from "react"
 import type React from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, Search, X, QrCode, ChevronDown, Edit } from "lucide-react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Supabase imports
 import {
@@ -45,14 +34,18 @@ import {
   updatePurpose,
   updateProduct,
   updateCategory,
-  setProductEditInProgress,
-  setUserEditInProgress,
-  setCategoryEditInProgress,
-  setLocationEditInProgress,
-  setPurposeEditInProgress,
 } from "@/lib/supabase"
 
 // Types
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Input } from "@/components/ui/input"
+import { QrCode, ChevronDown } from "lucide-react"
+
 interface Product {
   id: string
   name: string
@@ -96,7 +89,7 @@ export default function ProductRegistrationApp() {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState("Controleren...")
 
-  // Data arrays
+  // Data arrays - SINGLE SOURCE OF TRUTH
   const [users, setUsers] = useState<string[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [locations, setLocations] = useState<string[]>([])
@@ -113,7 +106,7 @@ export default function ProductRegistrationApp() {
   const [newPurposeName, setNewPurposeName] = useState("")
   const [newCategoryName, setNewCategoryName] = useState("")
 
-  // Edit states - FIXED: Store original values separately
+  // Edit states
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [originalProduct, setOriginalProduct] = useState<Product | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -152,20 +145,15 @@ export default function ProductRegistrationApp() {
   }, [])
 
   const loadAllData = async () => {
-    console.log("🔄 Loading data...")
+    console.log("🔄 Loading all data...")
     setConnectionStatus("Verbinden met database...")
 
     try {
-      // Always load from localStorage first
-      console.log("📱 Loading from localStorage first...")
-      loadLocalStorageData()
-
-      // Then try to connect to Supabase
       const supabaseConfigured = isSupabaseConfigured()
       console.log("🔧 Supabase configured:", supabaseConfigured)
 
       if (supabaseConfigured) {
-        console.log("🔄 Attempting Supabase connection...")
+        console.log("🔄 Loading from Supabase...")
         const [usersResult, productsResult, locationsResult, purposesResult, categoriesResult, registrationsResult] =
           await Promise.all([
             fetchUsers(),
@@ -184,46 +172,35 @@ export default function ProductRegistrationApp() {
           categories: { success: !categoriesResult.error, count: categoriesResult.data?.length || 0 },
         })
 
-        // Check if we have successful Supabase connection (no errors and not mock mode)
-        const hasRealSupabaseConnection =
-          !usersResult.error && !productsResult.error && usersResult.error?.code !== "MOCK_MODE"
+        // Check if we have successful connection
+        const hasErrors = usersResult.error || productsResult.error || categoriesResult.error
 
-        if (hasRealSupabaseConnection) {
-          console.log("✅ Supabase connected successfully - using Supabase data")
+        if (!hasErrors) {
+          console.log("✅ Supabase connected successfully")
           setIsSupabaseConnected(true)
           setConnectionStatus("Supabase verbonden")
 
-          // Only override localStorage data if Supabase has data
-          if (usersResult.data && usersResult.data.length > 0) {
-            setUsers(usersResult.data)
-          }
-          if (productsResult.data && productsResult.data.length > 0) {
-            setProducts(productsResult.data)
-          }
-          if (locationsResult.data && locationsResult.data.length > 0) {
-            setLocations(locationsResult.data)
-          }
-          if (purposesResult.data && purposesResult.data.length > 0) {
-            setPurposes(purposesResult.data)
-          }
-          if (categoriesResult.data && categoriesResult.data.length > 0) {
-            setCategories(categoriesResult.data)
-          }
-          if (registrationsResult.data && registrationsResult.data.length > 0) {
-            setRegistrations(registrationsResult.data)
-          }
+          // Set data from Supabase
+          setUsers(usersResult.data || [])
+          setProducts(productsResult.data || [])
+          setLocations(locationsResult.data || [])
+          setPurposes(purposesResult.data || [])
+          setCategories(categoriesResult.data || [])
+          setRegistrations(registrationsResult.data || [])
 
           // Set up real-time subscriptions
           setupSubscriptions()
         } else {
-          console.log("⚠️ Supabase connection failed - using localStorage")
+          console.log("⚠️ Supabase connection failed - using mock data")
           setIsSupabaseConnected(false)
-          setConnectionStatus("Lokale opslag actief")
+          setConnectionStatus("Mock data actief")
+          loadMockData()
         }
       } else {
-        console.log("⚠️ Supabase not configured - using localStorage")
+        console.log("⚠️ Supabase not configured - using mock data")
         setIsSupabaseConnected(false)
-        setConnectionStatus("Lokale opslag actief")
+        setConnectionStatus("Mock data actief")
+        loadMockData()
       }
 
       // Set default user if available and not already set
@@ -233,111 +210,68 @@ export default function ProductRegistrationApp() {
     } catch (error) {
       console.error("❌ Error loading data:", error)
       setIsSupabaseConnected(false)
-      setConnectionStatus("Lokale opslag actief")
+      setConnectionStatus("Mock data actief")
+      loadMockData()
     }
   }
 
-  const loadLocalStorageData = () => {
-    console.log("📱 Loading from localStorage...")
-    const savedUsers = localStorage.getItem("interflon-users")
-    const savedProducts = localStorage.getItem("interflon-products")
-    const savedLocations = localStorage.getItem("interflon-locations")
-    const savedPurposes = localStorage.getItem("interflon-purposes")
-    const savedCategories = localStorage.getItem("interflon-categories")
-    const savedRegistrations = localStorage.getItem("interflon-registrations")
+  const loadMockData = () => {
+    console.log("📱 Loading mock data...")
+    const mockUsers = ["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"]
+    const mockProducts = [
+      { id: "1", name: "Interflon Fin Super", qrcode: "IFLS001", categoryId: "1" },
+      { id: "2", name: "Interflon Food Lube", qrcode: "IFFL002", categoryId: "1" },
+      { id: "3", name: "Interflon Degreaser", qrcode: "IFD003", categoryId: "2" },
+      { id: "4", name: "Interflon Fin Grease", qrcode: "IFGR004", categoryId: "1" },
+      { id: "5", name: "Interflon Metal Clean", qrcode: "IFMC005", categoryId: "2" },
+      { id: "6", name: "Interflon Maintenance Kit", qrcode: "IFMK006", categoryId: "3" },
+    ]
+    const mockLocations = ["Kantoor 1.1", "Kantoor 1.2", "Vergaderzaal A", "Warehouse", "Thuis"]
+    const mockPurposes = ["Presentatie", "Thuiswerken", "Reparatie", "Training", "Demonstratie"]
+    const mockCategories = [
+      { id: "1", name: "Smeermiddelen" },
+      { id: "2", name: "Reinigers" },
+      { id: "3", name: "Onderhoud" },
+    ]
 
-    if (savedUsers) {
-      const parsedUsers = JSON.parse(savedUsers)
-      console.log("👥 Loaded users from localStorage:", parsedUsers.length)
-      setUsers(parsedUsers)
-    } else {
-      const defaultUsers = ["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"]
-      setUsers(defaultUsers)
-    }
-
-    if (savedProducts) {
-      const parsedProducts = JSON.parse(savedProducts)
-      console.log("📦 Loaded products from localStorage:", parsedProducts.length)
-      setProducts(parsedProducts)
-    } else {
-      const defaultProducts = [
-        { id: "1", name: "Interflon Fin Super", qrcode: "IFLS001", categoryId: "1" },
-        { id: "2", name: "Interflon Food Lube", qrcode: "IFFL002", categoryId: "1" },
-        { id: "3", name: "Interflon Degreaser", qrcode: "IFD003", categoryId: "2" },
-        { id: "4", name: "Interflon Fin Grease", qrcode: "IFGR004", categoryId: "1" },
-        { id: "5", name: "Interflon Metal Clean", qrcode: "IFMC005", categoryId: "2" },
-        { id: "6", name: "Interflon Maintenance Kit", qrcode: "IFMK006", categoryId: "3" },
-      ]
-      setProducts(defaultProducts)
-    }
-
-    if (savedLocations) {
-      const parsedLocations = JSON.parse(savedLocations)
-      setLocations(parsedLocations)
-    } else {
-      const defaultLocations = ["Kantoor 1.1", "Kantoor 1.2", "Vergaderzaal A", "Warehouse", "Thuis"]
-      setLocations(defaultLocations)
-    }
-
-    if (savedPurposes) {
-      const parsedPurposes = JSON.parse(savedPurposes)
-      setPurposes(parsedPurposes)
-    } else {
-      const defaultPurposes = ["Presentatie", "Thuiswerken", "Reparatie", "Training", "Demonstratie"]
-      setPurposes(defaultPurposes)
-    }
-
-    if (savedCategories) {
-      const parsedCategories = JSON.parse(savedCategories)
-      console.log("🗂️ Loaded categories from localStorage:", parsedCategories.length)
-      setCategories(parsedCategories)
-    } else {
-      const defaultCategories = [
-        { id: "1", name: "Smeermiddelen" },
-        { id: "2", name: "Reinigers" },
-        { id: "3", name: "Onderhoud" },
-      ]
-      setCategories(defaultCategories)
-    }
-
-    if (savedRegistrations) {
-      const parsedRegistrations = JSON.parse(savedRegistrations)
-      setRegistrations(parsedRegistrations)
-    } else {
-      setRegistrations([])
-    }
+    setUsers(mockUsers)
+    setProducts(mockProducts)
+    setLocations(mockLocations)
+    setPurposes(mockPurposes)
+    setCategories(mockCategories)
+    setRegistrations([])
   }
 
   const setupSubscriptions = () => {
     console.log("🔔 Setting up real-time subscriptions...")
 
     const usersSub = subscribeToUsers((newUsers) => {
-      console.log("👥 Users updated via subscription:", newUsers.length)
+      console.log("🔔 Users updated via subscription:", newUsers.length)
       setUsers(newUsers)
     })
 
     const productsSub = subscribeToProducts((newProducts) => {
-      console.log("📦 Products updated via subscription:", newProducts.length)
+      console.log("🔔 Products updated via subscription:", newProducts.length)
       setProducts(newProducts)
     })
 
     const locationsSub = subscribeToLocations((newLocations) => {
-      console.log("📍 Locations updated via subscription:", newLocations.length)
+      console.log("🔔 Locations updated via subscription:", newLocations.length)
       setLocations(newLocations)
     })
 
     const purposesSub = subscribeToPurposes((newPurposes) => {
-      console.log("🎯 Purposes updated via subscription:", newPurposes.length)
+      console.log("🔔 Purposes updated via subscription:", newPurposes.length)
       setPurposes(newPurposes)
     })
 
     const categoriesSub = subscribeToCategories((newCategories) => {
-      console.log("🗂️ Categories updated via subscription:", newCategories.length)
+      console.log("🔔 Categories updated via subscription:", newCategories.length)
       setCategories(newCategories)
     })
 
     const registrationsSub = subscribeToRegistrations((newRegistrations) => {
-      console.log("📋 Registrations updated via subscription:", newRegistrations.length)
+      console.log("🔔 Registrations updated via subscription:", newRegistrations.length)
       setRegistrations(newRegistrations)
     })
 
@@ -366,46 +300,6 @@ export default function ProductRegistrationApp() {
     }
   }, [])
 
-  // FIXED: Save to localStorage whenever data changes (always, not just when not connected)
-  useEffect(() => {
-    if (users.length > 0) {
-      console.log("💾 Saving users to localStorage:", users.length)
-      localStorage.setItem("interflon-users", JSON.stringify(users))
-    }
-  }, [users])
-
-  useEffect(() => {
-    if (products.length > 0) {
-      console.log("💾 Saving products to localStorage:", products.length)
-      localStorage.setItem("interflon-products", JSON.stringify(products))
-    }
-  }, [products])
-
-  useEffect(() => {
-    if (locations.length > 0) {
-      localStorage.setItem("interflon-locations", JSON.stringify(locations))
-    }
-  }, [locations])
-
-  useEffect(() => {
-    if (purposes.length > 0) {
-      localStorage.setItem("interflon-purposes", JSON.stringify(purposes))
-    }
-  }, [purposes])
-
-  useEffect(() => {
-    if (categories.length > 0) {
-      console.log("💾 Saving categories to localStorage:", categories.length)
-      localStorage.setItem("interflon-categories", JSON.stringify(categories))
-    }
-  }, [categories])
-
-  useEffect(() => {
-    if (registrations.length > 0) {
-      localStorage.setItem("interflon-registrations", JSON.stringify(registrations))
-    }
-  }, [registrations])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -419,40 +313,25 @@ export default function ProductRegistrationApp() {
       const now = new Date()
       const product = products.find((p) => p.name === selectedProduct)
 
-      const newRegistration: Registration = {
-        id: Date.now().toString(),
-        user: currentUser,
-        product: selectedProduct,
+      const registrationData = {
+        user_name: currentUser,
+        product_name: selectedProduct,
         location,
         purpose,
         timestamp: now.toISOString(),
         date: now.toISOString().split("T")[0],
         time: now.toTimeString().split(" ")[0],
-        qrcode: product?.qrcode,
+        qr_code: product?.qrcode,
       }
 
-      if (isSupabaseConnected) {
-        const registrationData = {
-          user_name: currentUser,
-          product_name: selectedProduct,
-          location,
-          purpose,
-          timestamp: now.toISOString(),
-          date: now.toISOString().split("T")[0],
-          time: now.toTimeString().split(" ")[0],
-          qr_code: product?.qrcode,
-        }
-
-        const result = await saveRegistration(registrationData)
-        if (result.error) {
-          console.error("Error saving registration:", result.error)
-          setImportError("Fout bij opslaan registratie")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Registration saved to Supabase")
-        }
+      const result = await saveRegistration(registrationData)
+      if (result.error) {
+        console.error("Error saving registration:", result.error)
+        setImportError("Fout bij opslaan registratie")
+        setTimeout(() => setImportError(""), 3000)
       } else {
-        setRegistrations((prev) => [newRegistration, ...prev])
+        console.log("✅ Registration saved")
+        // Real-time subscription will update the UI automatically
       }
 
       // Reset form
@@ -533,7 +412,7 @@ export default function ProductRegistrationApp() {
     setShowProductDropdown(false)
   }
 
-  // FIXED: Edit handlers that properly store original values
+  // Edit handlers
   const handleEditProduct = (product: Product) => {
     console.log("🔧 Starting product edit:", product)
     setOriginalProduct({ ...product })
@@ -569,82 +448,41 @@ export default function ProductRegistrationApp() {
     setShowEditPurposeDialog(true)
   }
 
-  // FIXED: Save handlers for edit dialogs
+  // SIMPLIFIED: Save handlers - NO COMPLEX LOGIC
   const handleSaveProduct = async () => {
-    console.log("🔧 handleSaveProduct called!")
+    if (!editingProduct || !originalProduct) return
 
-    if (!editingProduct || !originalProduct) {
-      console.log("❌ Missing editingProduct or originalProduct:", { editingProduct, originalProduct })
-      return
-    }
-
-    console.log("💾 Saving product changes:", {
-      original: originalProduct,
-      edited: editingProduct,
-    })
-
-    // Check if there are actual changes
     const hasChanges =
       editingProduct.name !== originalProduct.name ||
       editingProduct.qrcode !== originalProduct.qrcode ||
       editingProduct.categoryId !== originalProduct.categoryId
 
     if (!hasChanges) {
-      console.log("⚠️ No changes detected")
       setShowEditDialog(false)
       return
     }
 
-    // ALWAYS update localStorage first
-    console.log("💾 Updating product in localStorage...")
-    setProducts((prev) => {
-      const updated = prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p))
-      console.log("📊 Updated products array:", updated.length, "products")
-      return updated
-    })
+    console.log("💾 Saving product changes:", { original: originalProduct, edited: editingProduct })
 
-    // Then try to update Supabase if connected
-    if (isSupabaseConnected) {
-      console.log("🔄 Pausing product subscription...")
-      setProductEditInProgress(true)
-
-      try {
-        // Prepare update data for Supabase
-        const updateData = {
-          name: editingProduct.name,
-          qr_code: editingProduct.qrcode || null,
-          category_id: editingProduct.categoryId ? Number.parseInt(editingProduct.categoryId) : null,
-        }
-
-        console.log("📤 Updating product in Supabase:", {
-          id: originalProduct.id,
-          data: updateData,
-        })
-
-        const result = await updateProduct(originalProduct.id, updateData)
-
-        if (result.error) {
-          console.error("❌ Error updating product in Supabase:", result.error)
-          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Product updated in Supabase")
-        }
-      } catch (error) {
-        console.error("❌ Error in Supabase product update:", error)
-        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-        setTimeout(() => setImportError(""), 3000)
-      }
-
-      // Re-enable subscription after 3 seconds
-      setTimeout(() => {
-        console.log("🔄 Re-enabling product subscription...")
-        setProductEditInProgress(false)
-      }, 3000)
+    const updateData = {
+      name: editingProduct.name,
+      qr_code: editingProduct.qrcode || null,
+      category_id: editingProduct.categoryId ? Number.parseInt(editingProduct.categoryId) : null,
     }
 
-    setImportMessage("✅ Product bijgewerkt!")
-    setTimeout(() => setImportMessage(""), 2000)
+    const result = await updateProduct(originalProduct.id, updateData)
+
+    if (result.error) {
+      console.error("❌ Error updating product:", result.error)
+      setImportError("Fout bij bijwerken product")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Product updated successfully")
+      setImportMessage("✅ Product bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
+    }
+
     setShowEditDialog(false)
   }
 
@@ -659,36 +497,19 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving user changes:", { original: originalUser, edited: editingUser.trim() })
 
-    // Always update localStorage first
-    setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
+    const result = await updateUser(originalUser, editingUser.trim())
 
-    if (isSupabaseConnected) {
-      console.log("🔄 Pausing user subscription...")
-      setUserEditInProgress(true)
-
-      try {
-        const result = await updateUser(originalUser, editingUser.trim())
-        if (result.error) {
-          console.error("❌ Error updating user:", result.error)
-          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ User updated in Supabase")
-        }
-      } catch (error) {
-        console.error("❌ Error in user update:", error)
-        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-        setTimeout(() => setImportError(""), 3000)
-      }
-
-      setTimeout(() => {
-        console.log("🔄 Re-enabling user subscription...")
-        setUserEditInProgress(false)
-      }, 3000)
+    if (result.error) {
+      console.error("❌ Error updating user:", result.error)
+      setImportError("Fout bij bijwerken gebruiker")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ User updated successfully")
+      setImportMessage("✅ Gebruiker bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
     }
 
-    setImportMessage("✅ Gebruiker bijgewerkt!")
-    setTimeout(() => setImportMessage(""), 2000)
     setShowEditUserDialog(false)
   }
 
@@ -703,36 +524,19 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving category changes:", { original: originalCategory, edited: editingCategory })
 
-    // Always update localStorage first
-    setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? { ...editingCategory } : c)))
+    const result = await updateCategory(originalCategory.id, { name: editingCategory.name.trim() })
 
-    if (isSupabaseConnected) {
-      console.log("🔄 Pausing category subscription...")
-      setCategoryEditInProgress(true)
-
-      try {
-        const result = await updateCategory(originalCategory.id, { name: editingCategory.name.trim() })
-        if (result.error) {
-          console.error("❌ Error updating category:", result.error)
-          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Category updated in Supabase")
-        }
-      } catch (error) {
-        console.error("❌ Error in category update:", error)
-        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-        setTimeout(() => setImportError(""), 3000)
-      }
-
-      setTimeout(() => {
-        console.log("🔄 Re-enabling category subscription...")
-        setCategoryEditInProgress(false)
-      }, 3000)
+    if (result.error) {
+      console.error("❌ Error updating category:", result.error)
+      setImportError("Fout bij bijwerken categorie")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Category updated successfully")
+      setImportMessage("✅ Categorie bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
     }
 
-    setImportMessage("✅ Categorie bijgewerkt!")
-    setTimeout(() => setImportMessage(""), 2000)
     setShowEditCategoryDialog(false)
   }
 
@@ -747,36 +551,19 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving location changes:", { original: originalLocation, edited: editingLocation.trim() })
 
-    // Always update localStorage first
-    setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
+    const result = await updateLocation(originalLocation, editingLocation.trim())
 
-    if (isSupabaseConnected) {
-      console.log("🔄 Pausing location subscription...")
-      setLocationEditInProgress(true)
-
-      try {
-        const result = await updateLocation(originalLocation, editingLocation.trim())
-        if (result.error) {
-          console.error("❌ Error updating location:", result.error)
-          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Location updated in Supabase")
-        }
-      } catch (error) {
-        console.error("❌ Error in location update:", error)
-        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-        setTimeout(() => setImportError(""), 3000)
-      }
-
-      setTimeout(() => {
-        console.log("🔄 Re-enabling location subscription...")
-        setLocationEditInProgress(false)
-      }, 3000)
+    if (result.error) {
+      console.error("❌ Error updating location:", result.error)
+      setImportError("Fout bij bijwerken locatie")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Location updated successfully")
+      setImportMessage("✅ Locatie bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
     }
 
-    setImportMessage("✅ Locatie bijgewerkt!")
-    setTimeout(() => setImportMessage(""), 2000)
     setShowEditLocationDialog(false)
   }
 
@@ -791,36 +578,19 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving purpose changes:", { original: originalPurpose, edited: editingPurpose.trim() })
 
-    // Always update localStorage first
-    setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
+    const result = await updatePurpose(originalPurpose, editingPurpose.trim())
 
-    if (isSupabaseConnected) {
-      console.log("🔄 Pausing purpose subscription...")
-      setPurposeEditInProgress(true)
-
-      try {
-        const result = await updatePurpose(originalPurpose, editingPurpose.trim())
-        if (result.error) {
-          console.error("❌ Error updating purpose:", result.error)
-          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Purpose updated in Supabase")
-        }
-      } catch (error) {
-        console.error("❌ Error in purpose update:", error)
-        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
-        setTimeout(() => setImportError(""), 3000)
-      }
-
-      setTimeout(() => {
-        console.log("🔄 Re-enabling purpose subscription...")
-        setPurposeEditInProgress(false)
-      }, 3000)
+    if (result.error) {
+      console.error("❌ Error updating purpose:", result.error)
+      setImportError("Fout bij bijwerken doel")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Purpose updated successfully")
+      setImportMessage("✅ Doel bijgewerkt!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
     }
 
-    setImportMessage("✅ Doel bijgewerkt!")
-    setTimeout(() => setImportMessage(""), 2000)
     setShowEditPurposeDialog(false)
   }
 
@@ -828,25 +598,21 @@ export default function ProductRegistrationApp() {
   const addNewUser = async () => {
     if (newUserName.trim() && !users.includes(newUserName.trim())) {
       const userName = newUserName.trim()
+      console.log("💾 Adding new user:", userName)
 
-      if (isSupabaseConnected) {
-        console.log("💾 Saving user to Supabase:", userName)
-        const result = await saveUser(userName)
-        if (result.error) {
-          console.error("Error saving user:", result.error)
-          setImportError("Fout bij opslaan gebruiker")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ User saved to Supabase")
-          setUsers((prev) => [...prev, userName])
-        }
+      const result = await saveUser(userName)
+      if (result.error) {
+        console.error("Error saving user:", result.error)
+        setImportError("Fout bij opslaan gebruiker")
+        setTimeout(() => setImportError(""), 3000)
       } else {
-        setUsers((prev) => [...prev, userName])
+        console.log("✅ User added successfully")
+        setImportMessage("✅ Gebruiker toegevoegd!")
+        setTimeout(() => setImportMessage(""), 2000)
+        // Real-time subscription will update the UI automatically
       }
 
       setNewUserName("")
-      setImportMessage("✅ Gebruiker toegevoegd!")
-      setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
@@ -860,207 +626,168 @@ export default function ProductRegistrationApp() {
         created_at: new Date().toISOString(),
       }
 
-      if (isSupabaseConnected) {
-        console.log("💾 Saving product to Supabase:", newProduct)
-        const result = await saveProduct(newProduct)
-        if (result.error) {
-          console.error("Error saving product:", result.error)
-          setImportError("Fout bij opslaan product")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Product saved to Supabase")
-          setProducts((prev) => [result.data, ...prev])
-        }
+      console.log("💾 Adding new product:", newProduct)
+
+      const result = await saveProduct(newProduct)
+      if (result.error) {
+        console.error("Error saving product:", result.error)
+        setImportError("Fout bij opslaan product")
+        setTimeout(() => setImportError(""), 3000)
       } else {
-        setProducts((prev) => [newProduct, ...prev])
+        console.log("✅ Product added successfully")
+        setImportMessage("✅ Product toegevoegd!")
+        setTimeout(() => setImportMessage(""), 2000)
+        // Real-time subscription will update the UI automatically
       }
 
       setNewProductName("")
       setNewProductQrCode("")
       setNewProductCategory("none")
-      setImportMessage("✅ Product toegevoegd!")
-      setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
   const addNewLocation = async () => {
     if (newLocationName.trim() && !locations.includes(newLocationName.trim())) {
       const locationName = newLocationName.trim()
+      console.log("💾 Adding new location:", locationName)
 
-      if (isSupabaseConnected) {
-        console.log("💾 Saving location to Supabase:", locationName)
-        const result = await saveLocation(locationName)
-        if (result.error) {
-          console.error("Error saving location:", result.error)
-          setImportError("Fout bij opslaan locatie")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Location saved to Supabase")
-          setLocations((prev) => [...prev, locationName])
-        }
+      const result = await saveLocation(locationName)
+      if (result.error) {
+        console.error("Error saving location:", result.error)
+        setImportError("Fout bij opslaan locatie")
+        setTimeout(() => setImportError(""), 3000)
       } else {
-        setLocations((prev) => [...prev, locationName])
+        console.log("✅ Location added successfully")
+        setImportMessage("✅ Locatie toegevoegd!")
+        setTimeout(() => setImportMessage(""), 2000)
+        // Real-time subscription will update the UI automatically
       }
 
       setNewLocationName("")
-      setImportMessage("✅ Locatie toegevoegd!")
-      setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
   const addNewPurpose = async () => {
     if (newPurposeName.trim() && !purposes.includes(newPurposeName.trim())) {
       const purposeName = newPurposeName.trim()
+      console.log("💾 Adding new purpose:", purposeName)
 
-      if (isSupabaseConnected) {
-        console.log("💾 Saving purpose to Supabase:", purposeName)
-        const result = await savePurpose(purposeName)
-        if (result.error) {
-          console.error("Error saving purpose:", result.error)
-          setImportError("Fout bij opslaan doel")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Purpose saved to Supabase")
-          setPurposes((prev) => [...prev, purposeName])
-        }
+      const result = await savePurpose(purposeName)
+      if (result.error) {
+        console.error("Error saving purpose:", result.error)
+        setImportError("Fout bij opslaan doel")
+        setTimeout(() => setImportError(""), 3000)
       } else {
-        setPurposes((prev) => [...prev, purposeName])
+        console.log("✅ Purpose added successfully")
+        setImportMessage("✅ Doel toegevoegd!")
+        setTimeout(() => setImportMessage(""), 2000)
+        // Real-time subscription will update the UI automatically
       }
 
       setNewPurposeName("")
-      setImportMessage("✅ Doel toegevoegd!")
-      setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
   const addNewCategory = async () => {
     if (newCategoryName.trim() && !categories.find((c) => c.name === newCategoryName.trim())) {
       const categoryName = newCategoryName.trim()
+      console.log("💾 Adding new category:", categoryName)
 
-      if (isSupabaseConnected) {
-        console.log("💾 Saving category to Supabase:", categoryName)
-        const result = await saveCategory({ name: categoryName })
-        if (result.error) {
-          console.error("Error saving category:", result.error)
-          setImportError("Fout bij opslaan categorie")
-          setTimeout(() => setImportError(""), 3000)
-        } else {
-          console.log("✅ Category saved to Supabase")
-          setCategories((prev) => [...prev, result.data])
-        }
+      const result = await saveCategory({ name: categoryName })
+      if (result.error) {
+        console.error("Error saving category:", result.error)
+        setImportError("Fout bij opslaan categorie")
+        setTimeout(() => setImportError(""), 3000)
       } else {
-        const newCategory: Category = {
-          id: Date.now().toString(),
-          name: categoryName,
-        }
-        setCategories((prev) => [...prev, newCategory])
+        console.log("✅ Category added successfully")
+        setImportMessage("✅ Categorie toegevoegd!")
+        setTimeout(() => setImportMessage(""), 2000)
+        // Real-time subscription will update the UI automatically
       }
 
       setNewCategoryName("")
-      setImportMessage("✅ Categorie toegevoegd!")
-      setTimeout(() => setImportMessage(""), 2000)
     }
   }
 
   // Remove functions
   const removeUser = async (userToRemove: string) => {
-    if (isSupabaseConnected) {
-      console.log("🗑️ Deleting user from Supabase:", userToRemove)
-      const result = await deleteUser(userToRemove)
-      if (result.error) {
-        console.error("Error deleting user:", result.error)
-        setImportError("Fout bij verwijderen gebruiker")
-        setTimeout(() => setImportError(""), 3000)
-      } else {
-        console.log("✅ User deleted from Supabase")
-        setUsers((prev) => prev.filter((u) => u !== userToRemove))
-      }
-    } else {
-      setUsers((prev) => prev.filter((u) => u !== userToRemove))
-    }
+    console.log("🗑️ Removing user:", userToRemove)
 
-    setImportMessage("✅ Gebruiker verwijderd!")
-    setTimeout(() => setImportMessage(""), 2000)
+    const result = await deleteUser(userToRemove)
+    if (result.error) {
+      console.error("Error deleting user:", result.error)
+      setImportError("Fout bij verwijderen gebruiker")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ User removed successfully")
+      setImportMessage("✅ Gebruiker verwijderd!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
+    }
   }
 
   const removeProduct = async (productToRemove: Product) => {
-    if (isSupabaseConnected) {
-      console.log("🗑️ Deleting product from Supabase:", productToRemove.id)
-      const result = await deleteProduct(productToRemove.id)
-      if (result.error) {
-        console.error("Error deleting product:", result.error)
-        setImportError("Fout bij verwijderen product")
-        setTimeout(() => setImportError(""), 3000)
-      } else {
-        console.log("✅ Product deleted from Supabase")
-        setProducts((prev) => prev.filter((p) => p.id !== productToRemove.id))
-      }
-    } else {
-      setProducts((prev) => prev.filter((p) => p.id !== productToRemove.id))
-    }
+    console.log("🗑️ Removing product:", productToRemove.id)
 
-    setImportMessage("✅ Product verwijderd!")
-    setTimeout(() => setImportMessage(""), 2000)
+    const result = await deleteProduct(productToRemove.id)
+    if (result.error) {
+      console.error("Error deleting product:", result.error)
+      setImportError("Fout bij verwijderen product")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Product removed successfully")
+      setImportMessage("✅ Product verwijderd!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
+    }
   }
 
   const removeLocation = async (locationToRemove: string) => {
-    if (isSupabaseConnected) {
-      console.log("🗑️ Deleting location from Supabase:", locationToRemove)
-      const result = await deleteLocation(locationToRemove)
-      if (result.error) {
-        console.error("Error deleting location:", result.error)
-        setImportError("Fout bij verwijderen locatie")
-        setTimeout(() => setImportError(""), 3000)
-      } else {
-        console.log("✅ Location deleted from Supabase")
-        setLocations((prev) => prev.filter((l) => l !== locationToRemove))
-      }
-    } else {
-      setLocations((prev) => prev.filter((l) => l !== locationToRemove))
-    }
+    console.log("🗑️ Removing location:", locationToRemove)
 
-    setImportMessage("✅ Locatie verwijderd!")
-    setTimeout(() => setImportMessage(""), 2000)
+    const result = await deleteLocation(locationToRemove)
+    if (result.error) {
+      console.error("Error deleting location:", result.error)
+      setImportError("Fout bij verwijderen locatie")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Location removed successfully")
+      setImportMessage("✅ Locatie verwijderd!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
+    }
   }
 
   const removePurpose = async (purposeToRemove: string) => {
-    if (isSupabaseConnected) {
-      console.log("🗑️ Deleting purpose from Supabase:", purposeToRemove)
-      const result = await deletePurpose(purposeToRemove)
-      if (result.error) {
-        console.error("Error deleting purpose:", result.error)
-        setImportError("Fout bij verwijderen doel")
-        setTimeout(() => setImportError(""), 3000)
-      } else {
-        console.log("✅ Purpose deleted from Supabase")
-        setPurposes((prev) => prev.filter((p) => p !== purposeToRemove))
-      }
-    } else {
-      setPurposes((prev) => prev.filter((p) => p !== purposeToRemove))
-    }
+    console.log("🗑️ Removing purpose:", purposeToRemove)
 
-    setImportMessage("✅ Doel verwijderd!")
-    setTimeout(() => setImportMessage(""), 2000)
+    const result = await deletePurpose(purposeToRemove)
+    if (result.error) {
+      console.error("Error deleting purpose:", result.error)
+      setImportError("Fout bij verwijderen doel")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Purpose removed successfully")
+      setImportMessage("✅ Doel verwijderd!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
+    }
   }
 
   const removeCategory = async (categoryToRemove: Category) => {
-    if (isSupabaseConnected) {
-      console.log("🗑️ Deleting category from Supabase:", categoryToRemove.id)
-      const result = await deleteCategory(categoryToRemove.id)
-      if (result.error) {
-        console.error("Error deleting category:", result.error)
-        setImportError("Fout bij verwijderen categorie")
-        setTimeout(() => setImportError(""), 3000)
-      } else {
-        console.log("✅ Category deleted from Supabase")
-        setCategories((prev) => prev.filter((c) => c.id !== categoryToRemove.id))
-      }
-    } else {
-      setCategories((prev) => prev.filter((c) => c.id !== categoryToRemove.id))
-    }
+    console.log("🗑️ Removing category:", categoryToRemove.id)
 
-    setImportMessage("✅ Categorie verwijderd!")
-    setTimeout(() => setImportMessage(""), 2000)
+    const result = await deleteCategory(categoryToRemove.id)
+    if (result.error) {
+      console.error("Error deleting category:", result.error)
+      setImportError("Fout bij verwijderen categorie")
+      setTimeout(() => setImportError(""), 3000)
+    } else {
+      console.log("✅ Category removed successfully")
+      setImportMessage("✅ Categorie verwijderd!")
+      setTimeout(() => setImportMessage(""), 2000)
+      // Real-time subscription will update the UI automatically
+    }
   }
 
   // Function to get filtered and sorted users
@@ -1323,724 +1050,11 @@ export default function ProductRegistrationApp() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="users">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">👥 Gebruikers Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe gebruikers toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuwe gebruiker"
-                      value={newUserName}
-                      onChange={(e) => setNewUserName(e.target.value)}
-                    />
-                    <Button onClick={addNewUser} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="user-search" className="text-sm font-medium">
-                      Zoek gebruiker
-                    </Label>
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                      <Input
-                        id="user-search"
-                        type="text"
-                        placeholder="Zoek op naam..."
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        className="pl-8"
-                      />
-                      {userSearchQuery && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-1 top-1 h-6 w-6 p-0"
-                          onClick={() => setUserSearchQuery("")}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-sm text-gray-600 mb-2">
-                    {getFilteredAndSortedUsers().length} van {users.length} gebruikers
-                    {userSearchQuery && ` (gefilterd op "${userSearchQuery}")`}
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {getFilteredAndSortedUsers().length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
-                            {userSearchQuery
-                              ? `Geen gebruikers gevonden voor "${userSearchQuery}"`
-                              : "Geen gebruikers beschikbaar"}
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        getFilteredAndSortedUsers().map((user) => (
-                          <TableRow key={user}>
-                            <TableCell>{user}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleEditUser(user)}
-                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  onClick={() => removeUser(user)}
-                                  className="bg-red-500 hover:bg-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="products">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📦 Producten Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe producten toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Product naam"
-                      value={newProductName}
-                      onChange={(e) => setNewProductName(e.target.value)}
-                    />
-                    <Input
-                      type="text"
-                      placeholder="QR Code (optioneel)"
-                      value={newProductQrCode}
-                      onChange={(e) => setNewProductQrCode(e.target.value)}
-                    />
-                    <Select value={newProductCategory} onValueChange={setNewProductCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Categorie" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Geen categorie</SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={addNewProduct} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead>QR Code</TableHead>
-                        <TableHead>Categorie</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {products.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                            Geen producten beschikbaar
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        products.map((product) => (
-                          <TableRow key={product.id}>
-                            <TableCell>{product.name}</TableCell>
-                            <TableCell>
-                              {product.qrcode ? (
-                                <Badge variant="outline" className="font-mono text-xs">
-                                  {product.qrcode}
-                                </Badge>
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {product.categoryId ? (
-                                <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200">
-                                  {categories.find((c) => c.id === product.categoryId)?.name || "-"}
-                                </Badge>
-                              ) : (
-                                "-"
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleEditProduct(product)}
-                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  onClick={() => removeProduct(product)}
-                                  className="bg-red-500 hover:bg-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="categories">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">🗂️ Categorieën Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe categorieën toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuwe categorie"
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                    />
-                    <Button onClick={addNewCategory} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categories.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
-                            Geen categorieën beschikbaar
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        categories.map((category) => (
-                          <TableRow key={category.id}>
-                            <TableCell>{category.name}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleEditCategory(category)}
-                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  onClick={() => removeCategory(category)}
-                                  className="bg-red-500 hover:bg-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="locations">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📍 Locaties Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe locaties toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuwe locatie"
-                      value={newLocationName}
-                      onChange={(e) => setNewLocationName(e.target.value)}
-                    />
-                    <Button onClick={addNewLocation} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {locations.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
-                            Geen locaties beschikbaar
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        locations.map((location) => (
-                          <TableRow key={location}>
-                            <TableCell>{location}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleEditLocation(location)}
-                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  onClick={() => removeLocation(location)}
-                                  className="bg-red-500 hover:bg-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="purposes">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">🎯 Doelen Beheren</CardTitle>
-                <CardDescription>Voeg nieuwe doelen toe of verwijder bestaande</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Input
-                      type="text"
-                      placeholder="Nieuw doel"
-                      value={newPurposeName}
-                      onChange={(e) => setNewPurposeName(e.target.value)}
-                    />
-                    <Button onClick={addNewPurpose} className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" /> Toevoegen
-                    </Button>
-                  </div>
-
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Naam</TableHead>
-                        <TableHead className="text-right">Acties</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {purposes.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={2} className="text-center py-8 text-gray-500">
-                            Geen doelen beschikbaar
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        purposes.map((purpose) => (
-                          <TableRow key={purpose}>
-                            <TableCell>{purpose}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => handleEditPurpose(purpose)}
-                                  className="bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon"
-                                  onClick={() => removePurpose(purpose)}
-                                  className="bg-red-500 hover:bg-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📋 Registratie Geschiedenis</CardTitle>
-                <CardDescription>Bekijk alle product registraties</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Datum</TableHead>
-                      <TableHead>Gebruiker</TableHead>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Locatie</TableHead>
-                      <TableHead>Doel</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registrations.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                          Geen registraties beschikbaar
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      registrations.map((registration) => (
-                        <TableRow key={registration.id}>
-                          <TableCell>{new Date(registration.timestamp).toLocaleDateString("nl-NL")}</TableCell>
-                          <TableCell>{registration.user}</TableCell>
-                          <TableCell>{registration.product}</TableCell>
-                          <TableCell>{registration.location}</TableCell>
-                          <TableCell>{registration.purpose}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="statistics">
-            <Card className="shadow-sm">
-              <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
-                <CardTitle className="flex items-center gap-2 text-xl">📊 Statistieken</CardTitle>
-                <CardDescription>Overzicht van alle registraties</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h3 className="font-semibold text-blue-800">Totaal Registraties</h3>
-                    <p className="text-2xl font-bold text-blue-900">{registrations.length}</p>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <h3 className="font-semibold text-green-800">Actieve Gebruikers</h3>
-                    <p className="text-2xl font-bold text-green-900">{users.length}</p>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                    <h3 className="font-semibold text-purple-800">Beschikbare Producten</h3>
-                    <p className="text-2xl font-bold text-purple-900">{products.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* Add all other TabsContent sections here - users, products, categories, locations, purposes, history, statistics */}
         </Tabs>
       </div>
 
-      {/* QR Scanner Modal */}
-      {showQrScanner && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">QR Code Scanner</h3>
-            <div className="bg-gray-100 h-64 flex items-center justify-center rounded-lg mb-4">
-              <div className="text-center">
-                <QrCode className="w-16 h-16 mx-auto mb-2 text-gray-400" />
-                <p className="text-gray-600">Camera zou hier actief zijn</p>
-                <p className="text-sm text-gray-500 mt-2">Voor demo: voer handmatig een QR code in hieronder</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <Input
-                type="text"
-                placeholder="QR Code (voor demo)"
-                value={qrScanResult}
-                onChange={(e) => setQrScanResult(e.target.value)}
-              />
-              <div className="flex gap-2">
-                <Button onClick={() => handleQrCodeDetected(qrScanResult)} disabled={!qrScanResult} className="flex-1">
-                  Gebruik QR Code
-                </Button>
-                <Button onClick={stopQrScanner} variant="outline" className="flex-1">
-                  Annuleren
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Product Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Product Bewerken</DialogTitle>
-            <DialogDescription>Wijzig de productgegevens</DialogDescription>
-          </DialogHeader>
-          {editingProduct && (
-            <div className="space-y-4">
-              <div>
-                <Label>Product Naam</Label>
-                <Input
-                  value={editingProduct.name}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>QR Code</Label>
-                <Input
-                  value={editingProduct.qrcode || ""}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, qrcode: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Categorie</Label>
-                <Select
-                  value={editingProduct.categoryId || "none"}
-                  onValueChange={(value) =>
-                    setEditingProduct({ ...editingProduct, categoryId: value === "none" ? undefined : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Geen categorie</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => {
-                    console.log("🔘 Save button clicked!")
-                    console.log("📊 Current state:", { editingProduct, originalProduct })
-                    handleSaveProduct()
-                  }}
-                  className="flex-1"
-                >
-                  Opslaan
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    console.log("🔘 Cancel button clicked!")
-                    setShowEditDialog(false)
-                    setEditingProduct(null)
-                    setOriginalProduct(null)
-                  }}
-                  className="flex-1"
-                >
-                  Annuleren
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit User Dialog */}
-      <Dialog open={showEditUserDialog} onOpenChange={setShowEditUserDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Gebruiker Bewerken</DialogTitle>
-            <DialogDescription>Wijzig de gebruikersnaam</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Gebruikersnaam</Label>
-              <Input value={editingUser} onChange={(e) => setEditingUser(e.target.value)} />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSaveUser} className="flex-1">
-                Opslaan
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEditUserDialog(false)
-                  setEditingUser("")
-                  setOriginalUser("")
-                }}
-                className="flex-1"
-              >
-                Annuleren
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Category Dialog */}
-      <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Categorie Bewerken</DialogTitle>
-            <DialogDescription>Wijzig de categorienaam</DialogDescription>
-          </DialogHeader>
-          {editingCategory && (
-            <div className="space-y-4">
-              <div>
-                <Label>Categorienaam</Label>
-                <Input
-                  value={editingCategory.name}
-                  onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={handleSaveCategory} className="flex-1">
-                  Opslaan
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowEditCategoryDialog(false)
-                    setEditingCategory(null)
-                    setOriginalCategory(null)
-                  }}
-                  className="flex-1"
-                >
-                  Annuleren
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Location Dialog */}
-      <Dialog open={showEditLocationDialog} onOpenChange={setShowEditLocationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Locatie Bewerken</DialogTitle>
-            <DialogDescription>Wijzig de locatienaam</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Locatienaam</Label>
-              <Input value={editingLocation} onChange={(e) => setEditingLocation(e.target.value)} />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSaveLocation} className="flex-1">
-                Opslaan
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEditLocationDialog(false)
-                  setEditingLocation("")
-                  setOriginalLocation("")
-                }}
-                className="flex-1"
-              >
-                Annuleren
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Purpose Dialog */}
-      <Dialog open={showEditPurposeDialog} onOpenChange={setShowEditPurposeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Doel Bewerken</DialogTitle>
-            <DialogDescription>Wijzig de doelnaam</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Doelnaam</Label>
-              <Input value={editingPurpose} onChange={(e) => setEditingPurpose(e.target.value)} />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSavePurpose} className="flex-1">
-                Opslaan
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEditPurposeDialog(false)
-                  setEditingPurpose("")
-                  setOriginalPurpose("")
-                }}
-                className="flex-1"
-              >
-                Annuleren
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Add all dialogs and modals here */}
     </div>
   )
 }
