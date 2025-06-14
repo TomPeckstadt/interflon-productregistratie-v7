@@ -531,6 +531,14 @@ export default function ProductRegistrationApp() {
       setImportMessage("✅ Gebruiker bijgewerkt!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
+
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local users refresh...")
+      const refreshResult = await fetchUsers()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local users state...")
+        setUsers(refreshResult.data)
+      }
     }
 
     setShowEditUserDialog(false)
@@ -558,6 +566,14 @@ export default function ProductRegistrationApp() {
       setImportMessage("✅ Categorie bijgewerkt!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
+
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local categories refresh...")
+      const refreshResult = await fetchCategories()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local categories state...")
+        setCategories(refreshResult.data)
+      }
     }
 
     setShowEditCategoryDialog(false)
@@ -585,6 +601,14 @@ export default function ProductRegistrationApp() {
       setImportMessage("✅ Locatie bijgewerkt!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
+
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local locations refresh...")
+      const refreshResult = await fetchLocations()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local locations state...")
+        setLocations(refreshResult.data)
+      }
     }
 
     setShowEditLocationDialog(false)
@@ -612,6 +636,14 @@ export default function ProductRegistrationApp() {
       setImportMessage("✅ Doel bijgewerkt!")
       setTimeout(() => setImportMessage(""), 2000)
       // Real-time subscription will update the UI automatically
+
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local purposes refresh...")
+      const refreshResult = await fetchPurposes()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local purposes state...")
+        setPurposes(refreshResult.data)
+      }
     }
 
     setShowEditPurposeDialog(false)
