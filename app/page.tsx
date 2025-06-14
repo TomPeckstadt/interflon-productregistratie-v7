@@ -29,12 +29,12 @@ import {
   subscribeToCategories,
   subscribeToRegistrations,
   isSupabaseConfigured,
+  testSupabaseConnection,
   updateUser,
   updateLocation,
   updatePurpose,
   updateProduct,
   updateCategory,
-  testSupabaseConnection,
 } from "@/lib/supabase"
 
 // Types
