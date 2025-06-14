@@ -10,9 +10,48 @@ console.log("Key:", supabaseAnonKey ? "✅ Set" : "❌ Missing")
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = () => {
+  console.log("🔧 Environment variables check:")
+  console.log("NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : "❌ MISSING")
+  console.log(
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY:",
+    supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : "❌ MISSING",
+  )
+
   const configured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl.includes("supabase"))
   console.log("🔍 Supabase configured:", configured)
+
+  if (!configured) {
+    console.log("❌ Supabase configuration failed:")
+    if (!supabaseUrl) console.log("  - Missing NEXT_PUBLIC_SUPABASE_URL")
+    if (!supabaseAnonKey) console.log("  - Missing NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    if (supabaseUrl && !supabaseUrl.includes("supabase")) console.log("  - Invalid URL format")
+  }
+
   return configured
+}
+
+// Test Supabase connection
+export const testSupabaseConnection = async () => {
+  if (!supabase) {
+    console.log("❌ No Supabase client available")
+    return false
+  }
+
+  try {
+    console.log("🔍 Testing Supabase connection...")
+    const { data, error } = await supabase.from("users").select("count", { count: "exact", head: true })
+
+    if (error) {
+      console.error("❌ Supabase connection test failed:", error)
+      return false
+    }
+
+    console.log("✅ Supabase connection test successful")
+    return true
+  } catch (error) {
+    console.error("❌ Supabase connection test error:", error)
+    return false
+  }
 }
 
 // Create Supabase client
@@ -423,7 +462,17 @@ export const updateProduct = async (id: string, updates: any) => {
 
   try {
     console.log("🔄 Updating product in Supabase:", { id, updates })
-    const { data, error } = await supabase.from("products").update(updates).eq("id", id).select()
+
+    // Ensure category_id is properly handled
+    const updateData = {
+      name: updates.name,
+      qr_code: updates.qr_code,
+      category_id: updates.category_id === null ? null : Number(updates.category_id),
+    }
+
+    console.log("🔄 Final update data:", updateData)
+
+    const { data, error } = await supabase.from("products").update(updateData).eq("id", Number(id)).select()
 
     if (error) {
       console.error("❌ Error updating product:", error)
@@ -515,6 +564,7 @@ export const updatePurpose = async (oldName: string, newName: string) => {
 
   try {
     console.log("🔄 Updating purpose in Supabase:", { oldName, newName })
+
     const { data, error } = await supabase.from("purposes").update({ name: newName }).eq("name", oldName).select()
 
     if (error) {
@@ -522,7 +572,12 @@ export const updatePurpose = async (oldName: string, newName: string) => {
       return { data: null, error }
     }
 
-    console.log("✅ Purpose updated in Supabase")
+    if (!data || data.length === 0) {
+      console.error("❌ No purpose found to update:", oldName)
+      return { data: null, error: { message: "Purpose not found" } }
+    }
+
+    console.log("✅ Purpose updated in Supabase:", data)
     return { data: { name: newName }, error: null }
   } catch (error) {
     console.error("❌ Error in updatePurpose:", error)
