@@ -1761,5 +1761,8 @@ export default function ProductRegistrationApp() {
               </Button>
             </div>
           </div>
-        </DialogContent>\
+        </DialogContent>
       </Dialog>
+    </div>
+  )
+}
