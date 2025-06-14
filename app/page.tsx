@@ -40,6 +40,8 @@ import {
   subscribeToCategories,
   subscribeToRegistrations,
   isSupabaseConfigured,
+  updateUser,
+  updateLocation,
   updatePurpose,
 } from "@/lib/supabase"
 
@@ -171,7 +173,7 @@ export default function ProductRegistrationApp() {
         // Set data from Supabase (even if empty arrays)
         setUsers(usersResult.data || [])
         setProducts(productsResult.data || [])
-        setLocations(locationsResult.data || [])
+        setLocation(locationsResult.data || [])
         setPurposes(purposesResult.data || [])
         setCategories(categoriesResult.data || [])
         setRegistrations(registrationsResult.data || [])
@@ -231,10 +233,10 @@ export default function ProductRegistrationApp() {
 
     if (savedLocations) {
       const parsedLocations = JSON.parse(savedLocations)
-      setLocations(parsedLocations)
+      setLocation(parsedLocations)
     } else {
       const defaultLocations = ["Kantoor 1.1", "Kantoor 1.2", "Vergaderzaal A", "Warehouse", "Thuis"]
-      setLocations(defaultLocations)
+      setLocation(defaultLocations)
     }
 
     if (savedPurposes) {
@@ -285,7 +287,7 @@ export default function ProductRegistrationApp() {
 
     const locationsSub = subscribeToLocations((newLocations) => {
       console.log("📍 Locations updated:", newLocations.length)
-      setLocations(newLocations)
+      setLocation(newLocations)
     })
 
     const purposesSub = subscribeToPurposes((newPurposes) => {
@@ -564,10 +566,10 @@ export default function ProductRegistrationApp() {
           setTimeout(() => setImportError(""), 3000)
         } else {
           console.log("✅ Location saved to Supabase")
-          setLocations((prev) => [...prev, locationName])
+          setLocation((prev) => [...prev, locationName])
         }
       } else {
-        setLocations((prev) => [...prev, locationName])
+        setLocation((prev) => [...prev, locationName])
       }
 
       setNewLocationName("")
@@ -681,10 +683,10 @@ export default function ProductRegistrationApp() {
         setTimeout(() => setImportError(""), 3000)
       } else {
         console.log("✅ Location deleted from Supabase")
-        setLocations((prev) => prev.filter((l) => l !== locationToRemove))
+        setLocation((prev) => prev.filter((l) => l !== locationToRemove))
       }
     } else {
-      setLocations((prev) => prev.filter((l) => l !== locationToRemove))
+      setLocation((prev) => prev.filter((l) => l !== locationToRemove))
     }
 
     setImportMessage("✅ Locatie verwijderd!")
@@ -1562,23 +1564,34 @@ export default function ProductRegistrationApp() {
                 onClick={async () => {
                   console.log("🔄 Saving edited product:", editingProduct)
 
-                  if (isSupabaseConnected) {
-                    const result = await saveProduct(editingProduct)
-                    if (!result.error && result.data) {
-                      console.log("✅ Product saved successfully")
-                      // Update local state immediately with the saved data
-                      setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? result.data : p)))
+                  if (!editingProduct) return
+
+                  try {
+                    if (isSupabaseConnected) {
+                      const result = await saveProduct(editingProduct)
+                      if (!result.error && result.data) {
+                        console.log("✅ Product saved successfully:", result.data)
+                        // Force refresh products from database
+                        const { data: refreshedProducts } = await fetchProducts()
+                        if (refreshedProducts) {
+                          setProducts(refreshedProducts)
+                        }
+                        setImportMessage("✅ Product bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                      } else {
+                        console.error("❌ Error saving product:", result.error)
+                        setImportError("Fout bij opslaan product")
+                        setTimeout(() => setImportError(""), 3000)
+                      }
+                    } else {
+                      setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? editingProduct : p)))
                       setImportMessage("✅ Product bijgewerkt!")
                       setTimeout(() => setImportMessage(""), 2000)
-                    } else {
-                      console.error("❌ Error saving product:", result.error)
-                      setImportError("Fout bij opslaan product")
-                      setTimeout(() => setImportError(""), 3000)
                     }
-                  } else {
-                    setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? editingProduct : p)))
-                    setImportMessage("✅ Product bijgewerkt!")
-                    setTimeout(() => setImportMessage(""), 2000)
+                  } catch (error) {
+                    console.error("❌ Unexpected error:", error)
+                    setImportError("Onverwachte fout bij opslaan")
+                    setTimeout(() => setImportError(""), 3000)
                   }
 
                   setShowEditDialog(false)
@@ -1612,10 +1625,38 @@ export default function ProductRegistrationApp() {
                 Annuleren
               </Button>
               <Button
-                onClick={() => {
-                  // Note: User editing would require more complex logic for Supabase
-                  setImportMessage("✅ Gebruiker bijgewerkt!")
-                  setTimeout(() => setImportMessage(""), 2000)
+                onClick={async () => {
+                  if (!editingUser) return
+
+                  const originalUser = users.find((u) => u === editingUser)
+                  if (!originalUser) return
+
+                  try {
+                    if (isSupabaseConnected) {
+                      const result = await updateUser(originalUser, editingUser)
+                      if (!result.error) {
+                        // Force refresh users from database
+                        const { data: refreshedUsers } = await fetchUsers()
+                        if (refreshedUsers) {
+                          setUsers(refreshedUsers)
+                        }
+                        setImportMessage("✅ Gebruiker bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                      } else {
+                        setImportError("Fout bij bijwerken gebruiker")
+                        setTimeout(() => setImportError(""), 3000)
+                      }
+                    } else {
+                      setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser : u)))
+                      setImportMessage("✅ Gebruiker bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
+                    }
+                  } catch (error) {
+                    console.error("❌ Error updating user:", error)
+                    setImportError("Onverwachte fout bij bijwerken")
+                    setTimeout(() => setImportError(""), 3000)
+                  }
+
                   setShowEditUserDialog(false)
                   setEditingUser(null)
                 }}
@@ -1652,18 +1693,34 @@ export default function ProductRegistrationApp() {
               </Button>
               <Button
                 onClick={async () => {
-                  if (isSupabaseConnected) {
-                    const result = await saveCategory(editingCategory)
-                    if (!result.error) {
+                  if (!editingCategory) return
+
+                  try {
+                    if (isSupabaseConnected) {
+                      const result = await saveCategory(editingCategory)
+                      if (!result.error) {
+                        // Force refresh categories from database
+                        const { data: refreshedCategories } = await fetchCategories()
+                        if (refreshedCategories) {
+                          setCategories(refreshedCategories)
+                        }
+                        setImportMessage("✅ Categorie bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                      } else {
+                        setImportError("Fout bij bijwerken categorie")
+                        setTimeout(() => setImportError(""), 3000)
+                      }
+                    } else {
                       setCategories((prev) => prev.map((c) => (c.id === editingCategory.id ? editingCategory : c)))
                       setImportMessage("✅ Categorie bijgewerkt!")
                       setTimeout(() => setImportMessage(""), 2000)
                     }
-                  } else {
-                    setCategories((prev) => prev.map((c) => (c.id === editingCategory.id ? editingCategory : c)))
-                    setImportMessage("✅ Categorie bijgewerkt!")
-                    setTimeout(() => setImportMessage(""), 2000)
+                  } catch (error) {
+                    console.error("❌ Error updating category:", error)
+                    setImportError("Onverwachte fout bij bijwerken")
+                    setTimeout(() => setImportError(""), 3000)
                   }
+
                   setShowEditCategoryDialog(false)
                   setEditingCategory(null)
                 }}
@@ -1699,10 +1756,38 @@ export default function ProductRegistrationApp() {
                 Annuleren
               </Button>
               <Button
-                onClick={() => {
-                  // Note: Location editing would require more complex logic for Supabase
-                  setImportMessage("✅ Locatie bijgewerkt!")
-                  setTimeout(() => setImportMessage(""), 2000)
+                onClick={async () => {
+                  if (!editingLocation) return
+
+                  const originalLocation = locations.find((l) => l === editingLocation)
+                  if (!originalLocation) return
+
+                  try {
+                    if (isSupabaseConnected) {
+                      const result = await updateLocation(originalLocation, editingLocation)
+                      if (!result.error) {
+                        // Force refresh locations from database
+                        const { data: refreshedLocations } = await fetchLocations()
+                        if (refreshedLocations) {
+                          setLocation(refreshedLocations)
+                        }
+                        setImportMessage("✅ Locatie bijgewerkt!")
+                        setTimeout(() => setImportMessage(""), 2000)
+                      } else {
+                        setImportError("Fout bij bijwerken locatie")
+                        setTimeout(() => setImportError(""), 3000)
+                      }
+                    } else {
+                      setLocation((prev) => prev.map((l) => (l === originalLocation ? editingLocation : l)))
+                      setImportMessage("✅ Locatie bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
+                    }
+                  } catch (error) {
+                    console.error("❌ Error updating location:", error)
+                    setImportError("Onverwachte fout bij bijwerken")
+                    setTimeout(() => setImportMessage(""), 3000)
+                  }
+
                   setShowEditLocationDialog(false)
                   setEditingLocation(null)
                 }}
@@ -1739,26 +1824,37 @@ export default function ProductRegistrationApp() {
               </Button>
               <Button
                 onClick={async () => {
-                  if (editingPurpose) {
-                    const originalPurpose = purposes.find((p) => p === editingPurpose)
-                    if (originalPurpose && originalPurpose !== editingPurpose) {
-                      if (isSupabaseConnected) {
-                        const result = await updatePurpose(originalPurpose, editingPurpose)
-                        if (!result.error) {
-                          const { data: refreshedPurposes } = await fetchPurposes()
-                          if (refreshedPurposes) {
-                            setPurposes(refreshedPurposes)
-                          }
-                          setImportMessage("✅ Doel bijgewerkt!")
-                          setTimeout(() => setImportMessage(""), 2000)
+                  if (!editingPurpose) return
+
+                  const originalPurpose = purposes.find((p) => p === editingPurpose)
+                  if (!originalPurpose) return
+
+                  try {
+                    if (isSupabaseConnected) {
+                      const result = await updatePurpose(originalPurpose, editingPurpose)
+                      if (!result.error) {
+                        // Force refresh purposes from database
+                        const { data: refreshedPurposes } = await fetchPurposes()
+                        if (refreshedPurposes) {
+                          setPurposes(refreshedPurposes)
                         }
-                      } else {
-                        setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose : p)))
                         setImportMessage("✅ Doel bijgewerkt!")
                         setTimeout(() => setImportMessage(""), 2000)
+                      } else {
+                        setImportError("Fout bij bijwerken doel")
+                        setTimeout(() => setImportError(""), 3000)
                       }
+                    } else {
+                      setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose : p)))
+                      setImportMessage("✅ Doel bijgewerkt!")
+                      setTimeout(() => setImportMessage(""), 2000)
                     }
+                  } catch (error) {
+                    console.error("❌ Error updating purpose:", error)
+                    setImportError("Onverwachte fout bij bijwerken")
+                    setTimeout(() => setImportError(""), 3000)
                   }
+
                   setShowEditPurposeDialog(false)
                   setEditingPurpose(null)
                 }}
