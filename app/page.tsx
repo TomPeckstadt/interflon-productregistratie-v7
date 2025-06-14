@@ -548,7 +548,12 @@ export default function ProductRegistrationApp() {
 
   // FIXED: Save handlers for edit dialogs
   const handleSaveProduct = async () => {
-    if (!editingProduct || !originalProduct) return
+    console.log("🔧 handleSaveProduct called!")
+
+    if (!editingProduct || !originalProduct) {
+      console.log("❌ Missing editingProduct or originalProduct:", { editingProduct, originalProduct })
+      return
+    }
 
     console.log("💾 Saving product changes:", {
       original: originalProduct,
@@ -1861,12 +1866,20 @@ export default function ProductRegistrationApp() {
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSaveProduct} className="flex-1">
+                <Button
+                  onClick={() => {
+                    console.log("🔘 Save button clicked!")
+                    console.log("📊 Current state:", { editingProduct, originalProduct })
+                    handleSaveProduct()
+                  }}
+                  className="flex-1"
+                >
                   Opslaan
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => {
+                    console.log("🔘 Cancel button clicked!")
                     setShowEditDialog(false)
                     setEditingProduct(null)
                     setOriginalProduct(null)
