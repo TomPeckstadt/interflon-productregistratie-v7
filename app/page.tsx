@@ -146,83 +146,94 @@ export default function ProductRegistrationApp() {
   const [qrScanResult, setQrScanResult] = useState("")
   const [qrScanMode, setQrScanMode] = useState<"registration" | "product-management">("registration")
 
-  // FIXED: Helper function to save to localStorage
-  const saveToLocalStorage = () => {
-    console.log("💾 Saving all data to localStorage...")
-    localStorage.setItem("interflon-users", JSON.stringify(users))
-    localStorage.setItem("interflon-products", JSON.stringify(products))
-    localStorage.setItem("interflon-locations", JSON.stringify(locations))
-    localStorage.setItem("interflon-purposes", JSON.stringify(purposes))
-    localStorage.setItem("interflon-categories", JSON.stringify(categories))
-    localStorage.setItem("interflon-registrations", JSON.stringify(registrations))
-  }
-
   // Load data on component mount
   useEffect(() => {
     loadAllData()
   }, [])
 
   const loadAllData = async () => {
-    console.log("🔄 Loading data from Supabase...")
+    console.log("🔄 Loading data...")
     setConnectionStatus("Verbinden met database...")
 
     try {
-      // Check if Supabase is configured first
+      // Always load from localStorage first
+      console.log("📱 Loading from localStorage first...")
+      loadLocalStorageData()
+
+      // Then try to connect to Supabase
       const supabaseConfigured = isSupabaseConfigured()
+      console.log("🔧 Supabase configured:", supabaseConfigured)
 
-      const [usersResult, productsResult, locationsResult, purposesResult, categoriesResult, registrationsResult] =
-        await Promise.all([
-          fetchUsers(),
-          fetchProducts(),
-          fetchLocations(),
-          fetchPurposes(),
-          fetchCategories(),
-          fetchRegistrations(),
-        ])
+      if (supabaseConfigured) {
+        console.log("🔄 Attempting Supabase connection...")
+        const [usersResult, productsResult, locationsResult, purposesResult, categoriesResult, registrationsResult] =
+          await Promise.all([
+            fetchUsers(),
+            fetchProducts(),
+            fetchLocations(),
+            fetchPurposes(),
+            fetchCategories(),
+            fetchRegistrations(),
+          ])
 
-      console.log("📊 Data loaded:", {
-        users: usersResult.data?.length || 0,
-        products: productsResult.data?.length || 0,
-        locations: locationsResult.data?.length || 0,
-        purposes: purposesResult.data?.length || 0,
-        categories: categoriesResult.data?.length || 0,
-      })
+        console.log("📊 Supabase results:", {
+          users: { success: !usersResult.error, count: usersResult.data?.length || 0 },
+          products: { success: !productsResult.error, count: productsResult.data?.length || 0 },
+          locations: { success: !locationsResult.error, count: locationsResult.data?.length || 0 },
+          purposes: { success: !purposesResult.error, count: purposesResult.data?.length || 0 },
+          categories: { success: !categoriesResult.error, count: categoriesResult.data?.length || 0 },
+        })
 
-      // Check if we have a real Supabase connection (not mock mode)
-      const hasRealSupabaseConnection =
-        supabaseConfigured && (!usersResult.error || (usersResult.error && usersResult.error.code !== "MOCK_MODE"))
+        // Check if we have successful Supabase connection (no errors and not mock mode)
+        const hasRealSupabaseConnection =
+          !usersResult.error && !productsResult.error && usersResult.error?.code !== "MOCK_MODE"
 
-      if (hasRealSupabaseConnection) {
-        console.log("✅ Supabase connected successfully")
-        setIsSupabaseConnected(true)
-        setConnectionStatus("Supabase verbonden")
+        if (hasRealSupabaseConnection) {
+          console.log("✅ Supabase connected successfully - using Supabase data")
+          setIsSupabaseConnected(true)
+          setConnectionStatus("Supabase verbonden")
 
-        // Set data from Supabase (even if empty arrays)
-        setUsers(usersResult.data || [])
-        setProducts(productsResult.data || [])
-        setLocations(locationsResult.data || [])
-        setPurposes(purposesResult.data || [])
-        setCategories(categoriesResult.data || [])
-        setRegistrations(registrationsResult.data || [])
+          // Only override localStorage data if Supabase has data
+          if (usersResult.data && usersResult.data.length > 0) {
+            setUsers(usersResult.data)
+          }
+          if (productsResult.data && productsResult.data.length > 0) {
+            setProducts(productsResult.data)
+          }
+          if (locationsResult.data && locationsResult.data.length > 0) {
+            setLocations(locationsResult.data)
+          }
+          if (purposesResult.data && purposesResult.data.length > 0) {
+            setPurposes(purposesResult.data)
+          }
+          if (categoriesResult.data && categoriesResult.data.length > 0) {
+            setCategories(categoriesResult.data)
+          }
+          if (registrationsResult.data && registrationsResult.data.length > 0) {
+            setRegistrations(registrationsResult.data)
+          }
 
-        // Set default user if available
-        if (usersResult.data && usersResult.data.length > 0) {
-          setCurrentUser(usersResult.data[0])
+          // Set up real-time subscriptions
+          setupSubscriptions()
+        } else {
+          console.log("⚠️ Supabase connection failed - using localStorage")
+          setIsSupabaseConnected(false)
+          setConnectionStatus("Lokale opslag actief")
         }
-
-        // Set up real-time subscriptions
-        setupSubscriptions()
       } else {
-        console.log("⚠️ Supabase connection failed, using localStorage")
+        console.log("⚠️ Supabase not configured - using localStorage")
         setIsSupabaseConnected(false)
         setConnectionStatus("Lokale opslag actief")
-        loadLocalStorageData()
+      }
+
+      // Set default user if available and not already set
+      if (!currentUser && users.length > 0) {
+        setCurrentUser(users[0])
       }
     } catch (error) {
       console.error("❌ Error loading data:", error)
       setIsSupabaseConnected(false)
       setConnectionStatus("Lokale opslag actief")
-      loadLocalStorageData()
     }
   }
 
@@ -237,6 +248,7 @@ export default function ProductRegistrationApp() {
 
     if (savedUsers) {
       const parsedUsers = JSON.parse(savedUsers)
+      console.log("👥 Loaded users from localStorage:", parsedUsers.length)
       setUsers(parsedUsers)
     } else {
       const defaultUsers = ["Jan Janssen", "Marie Pietersen", "Piet de Vries", "Anna van der Berg"]
@@ -245,6 +257,7 @@ export default function ProductRegistrationApp() {
 
     if (savedProducts) {
       const parsedProducts = JSON.parse(savedProducts)
+      console.log("📦 Loaded products from localStorage:", parsedProducts.length)
       setProducts(parsedProducts)
     } else {
       const defaultProducts = [
@@ -276,6 +289,7 @@ export default function ProductRegistrationApp() {
 
     if (savedCategories) {
       const parsedCategories = JSON.parse(savedCategories)
+      console.log("🗂️ Loaded categories from localStorage:", parsedCategories.length)
       setCategories(parsedCategories)
     } else {
       const defaultCategories = [
@@ -292,43 +306,38 @@ export default function ProductRegistrationApp() {
     } else {
       setRegistrations([])
     }
-
-    // Set default user
-    if (!currentUser && users.length > 0) {
-      setCurrentUser(users[0])
-    }
   }
 
   const setupSubscriptions = () => {
     console.log("🔔 Setting up real-time subscriptions...")
 
     const usersSub = subscribeToUsers((newUsers) => {
-      console.log("👥 Users updated:", newUsers.length)
+      console.log("👥 Users updated via subscription:", newUsers.length)
       setUsers(newUsers)
     })
 
     const productsSub = subscribeToProducts((newProducts) => {
-      console.log("📦 Products updated:", newProducts.length)
+      console.log("📦 Products updated via subscription:", newProducts.length)
       setProducts(newProducts)
     })
 
     const locationsSub = subscribeToLocations((newLocations) => {
-      console.log("📍 Locations updated:", newLocations.length)
+      console.log("📍 Locations updated via subscription:", newLocations.length)
       setLocations(newLocations)
     })
 
     const purposesSub = subscribeToPurposes((newPurposes) => {
-      console.log("🎯 Purposes updated:", newPurposes.length)
+      console.log("🎯 Purposes updated via subscription:", newPurposes.length)
       setPurposes(newPurposes)
     })
 
     const categoriesSub = subscribeToCategories((newCategories) => {
-      console.log("🗂️ Categories updated:", newCategories.length)
+      console.log("🗂️ Categories updated via subscription:", newCategories.length)
       setCategories(newCategories)
     })
 
     const registrationsSub = subscribeToRegistrations((newRegistrations) => {
-      console.log("📋 Registrations updated:", newRegistrations.length)
+      console.log("📋 Registrations updated via subscription:", newRegistrations.length)
       setRegistrations(newRegistrations)
     })
 
@@ -360,12 +369,14 @@ export default function ProductRegistrationApp() {
   // FIXED: Save to localStorage whenever data changes (always, not just when not connected)
   useEffect(() => {
     if (users.length > 0) {
+      console.log("💾 Saving users to localStorage:", users.length)
       localStorage.setItem("interflon-users", JSON.stringify(users))
     }
   }, [users])
 
   useEffect(() => {
     if (products.length > 0) {
+      console.log("💾 Saving products to localStorage:", products.length)
       localStorage.setItem("interflon-products", JSON.stringify(products))
     }
   }, [products])
@@ -384,6 +395,7 @@ export default function ProductRegistrationApp() {
 
   useEffect(() => {
     if (categories.length > 0) {
+      console.log("💾 Saving categories to localStorage:", categories.length)
       localStorage.setItem("interflon-categories", JSON.stringify(categories))
     }
   }, [categories])
@@ -583,6 +595,15 @@ export default function ProductRegistrationApp() {
       return
     }
 
+    // ALWAYS update localStorage first
+    console.log("💾 Updating product in localStorage...")
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p))
+      console.log("📊 Updated products array:", updated.length, "products")
+      return updated
+    })
+
+    // Then try to update Supabase if connected
     if (isSupabaseConnected) {
       console.log("🔄 Pausing product subscription...")
       setProductEditInProgress(true)
@@ -603,22 +624,15 @@ export default function ProductRegistrationApp() {
         const result = await updateProduct(originalProduct.id, updateData)
 
         if (result.error) {
-          console.error("❌ Error updating product:", result.error)
-          setImportError("Fout bij bijwerken product")
+          console.error("❌ Error updating product in Supabase:", result.error)
+          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
           setTimeout(() => setImportError(""), 3000)
         } else {
           console.log("✅ Product updated in Supabase")
-
-          // Update local state immediately
-          setProducts((prev) => prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p)))
-
-          setImportMessage("✅ Product bijgewerkt!")
-          setTimeout(() => setImportMessage(""), 2000)
-          setShowEditDialog(false)
         }
       } catch (error) {
-        console.error("❌ Error in product update:", error)
-        setImportError("Fout bij bijwerken product")
+        console.error("❌ Error in Supabase product update:", error)
+        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
         setTimeout(() => setImportError(""), 3000)
       }
 
@@ -627,18 +641,11 @@ export default function ProductRegistrationApp() {
         console.log("🔄 Re-enabling product subscription...")
         setProductEditInProgress(false)
       }, 3000)
-    } else {
-      // FIXED: Update in localStorage mode
-      console.log("💾 Updating product in localStorage mode")
-      setProducts((prev) => {
-        const updated = prev.map((p) => (p.id === originalProduct.id ? { ...editingProduct } : p))
-        console.log("📊 Updated products array:", updated)
-        return updated
-      })
-      setImportMessage("✅ Product bijgewerkt!")
-      setTimeout(() => setImportMessage(""), 2000)
-      setShowEditDialog(false)
     }
+
+    setImportMessage("✅ Product bijgewerkt!")
+    setTimeout(() => setImportMessage(""), 2000)
+    setShowEditDialog(false)
   }
 
   const handleSaveUser = async () => {
@@ -652,6 +659,9 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving user changes:", { original: originalUser, edited: editingUser.trim() })
 
+    // Always update localStorage first
+    setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
+
     if (isSupabaseConnected) {
       console.log("🔄 Pausing user subscription...")
       setUserEditInProgress(true)
@@ -660,18 +670,14 @@ export default function ProductRegistrationApp() {
         const result = await updateUser(originalUser, editingUser.trim())
         if (result.error) {
           console.error("❌ Error updating user:", result.error)
-          setImportError("Fout bij bijwerken gebruiker")
+          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
           setTimeout(() => setImportError(""), 3000)
         } else {
           console.log("✅ User updated in Supabase")
-          setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
-          setImportMessage("✅ Gebruiker bijgewerkt!")
-          setTimeout(() => setImportMessage(""), 2000)
-          setShowEditUserDialog(false)
         }
       } catch (error) {
         console.error("❌ Error in user update:", error)
-        setImportError("Fout bij bijwerken gebruiker")
+        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
         setTimeout(() => setImportError(""), 3000)
       }
 
@@ -679,12 +685,11 @@ export default function ProductRegistrationApp() {
         console.log("🔄 Re-enabling user subscription...")
         setUserEditInProgress(false)
       }, 3000)
-    } else {
-      setUsers((prev) => prev.map((u) => (u === originalUser ? editingUser.trim() : u)))
-      setImportMessage("✅ Gebruiker bijgewerkt!")
-      setTimeout(() => setImportMessage(""), 2000)
-      setShowEditUserDialog(false)
     }
+
+    setImportMessage("✅ Gebruiker bijgewerkt!")
+    setTimeout(() => setImportMessage(""), 2000)
+    setShowEditUserDialog(false)
   }
 
   const handleSaveCategory = async () => {
@@ -698,6 +703,9 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving category changes:", { original: originalCategory, edited: editingCategory })
 
+    // Always update localStorage first
+    setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? { ...editingCategory } : c)))
+
     if (isSupabaseConnected) {
       console.log("🔄 Pausing category subscription...")
       setCategoryEditInProgress(true)
@@ -706,18 +714,14 @@ export default function ProductRegistrationApp() {
         const result = await updateCategory(originalCategory.id, { name: editingCategory.name.trim() })
         if (result.error) {
           console.error("❌ Error updating category:", result.error)
-          setImportError("Fout bij bijwerken categorie")
+          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
           setTimeout(() => setImportError(""), 3000)
         } else {
           console.log("✅ Category updated in Supabase")
-          setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? { ...editingCategory } : c)))
-          setImportMessage("✅ Categorie bijgewerkt!")
-          setTimeout(() => setImportMessage(""), 2000)
-          setShowEditCategoryDialog(false)
         }
       } catch (error) {
         console.error("❌ Error in category update:", error)
-        setImportError("Fout bij bijwerken categorie")
+        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
         setTimeout(() => setImportError(""), 3000)
       }
 
@@ -725,12 +729,11 @@ export default function ProductRegistrationApp() {
         console.log("🔄 Re-enabling category subscription...")
         setCategoryEditInProgress(false)
       }, 3000)
-    } else {
-      setCategories((prev) => prev.map((c) => (c.id === originalCategory.id ? editingCategory : c)))
-      setImportMessage("✅ Categorie bijgewerkt!")
-      setTimeout(() => setImportMessage(""), 2000)
-      setShowEditCategoryDialog(false)
     }
+
+    setImportMessage("✅ Categorie bijgewerkt!")
+    setTimeout(() => setImportMessage(""), 2000)
+    setShowEditCategoryDialog(false)
   }
 
   const handleSaveLocation = async () => {
@@ -744,6 +747,9 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving location changes:", { original: originalLocation, edited: editingLocation.trim() })
 
+    // Always update localStorage first
+    setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
+
     if (isSupabaseConnected) {
       console.log("🔄 Pausing location subscription...")
       setLocationEditInProgress(true)
@@ -752,18 +758,14 @@ export default function ProductRegistrationApp() {
         const result = await updateLocation(originalLocation, editingLocation.trim())
         if (result.error) {
           console.error("❌ Error updating location:", result.error)
-          setImportError("Fout bij bijwerken locatie")
+          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
           setTimeout(() => setImportError(""), 3000)
         } else {
           console.log("✅ Location updated in Supabase")
-          setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
-          setImportMessage("✅ Locatie bijgewerkt!")
-          setTimeout(() => setImportMessage(""), 2000)
-          setShowEditLocationDialog(false)
         }
       } catch (error) {
         console.error("❌ Error in location update:", error)
-        setImportError("Fout bij bijwerken locatie")
+        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
         setTimeout(() => setImportError(""), 3000)
       }
 
@@ -771,12 +773,11 @@ export default function ProductRegistrationApp() {
         console.log("🔄 Re-enabling location subscription...")
         setLocationEditInProgress(false)
       }, 3000)
-    } else {
-      setLocations((prev) => prev.map((l) => (l === originalLocation ? editingLocation.trim() : l)))
-      setImportMessage("✅ Locatie bijgewerkt!")
-      setTimeout(() => setImportMessage(""), 2000)
-      setShowEditLocationDialog(false)
     }
+
+    setImportMessage("✅ Locatie bijgewerkt!")
+    setTimeout(() => setImportMessage(""), 2000)
+    setShowEditLocationDialog(false)
   }
 
   const handleSavePurpose = async () => {
@@ -790,6 +791,9 @@ export default function ProductRegistrationApp() {
 
     console.log("💾 Saving purpose changes:", { original: originalPurpose, edited: editingPurpose.trim() })
 
+    // Always update localStorage first
+    setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
+
     if (isSupabaseConnected) {
       console.log("🔄 Pausing purpose subscription...")
       setPurposeEditInProgress(true)
@@ -798,18 +802,14 @@ export default function ProductRegistrationApp() {
         const result = await updatePurpose(originalPurpose, editingPurpose.trim())
         if (result.error) {
           console.error("❌ Error updating purpose:", result.error)
-          setImportError("Fout bij bijwerken doel")
+          setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
           setTimeout(() => setImportError(""), 3000)
         } else {
           console.log("✅ Purpose updated in Supabase")
-          setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
-          setImportMessage("✅ Doel bijgewerkt!")
-          setTimeout(() => setImportMessage(""), 2000)
-          setShowEditPurposeDialog(false)
         }
       } catch (error) {
         console.error("❌ Error in purpose update:", error)
-        setImportError("Fout bij bijwerken doel")
+        setImportError("Supabase update mislukt - wijziging opgeslagen lokaal")
         setTimeout(() => setImportError(""), 3000)
       }
 
@@ -817,12 +817,11 @@ export default function ProductRegistrationApp() {
         console.log("🔄 Re-enabling purpose subscription...")
         setPurposeEditInProgress(false)
       }, 3000)
-    } else {
-      setPurposes((prev) => prev.map((p) => (p === originalPurpose ? editingPurpose.trim() : p)))
-      setImportMessage("✅ Doel bijgewerkt!")
-      setTimeout(() => setImportMessage(""), 2000)
-      setShowEditPurposeDialog(false)
     }
+
+    setImportMessage("✅ Doel bijgewerkt!")
+    setTimeout(() => setImportMessage(""), 2000)
+    setShowEditPurposeDialog(false)
   }
 
   // Add functions
