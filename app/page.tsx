@@ -29,12 +29,12 @@ import {
   subscribeToCategories,
   subscribeToRegistrations,
   isSupabaseConfigured,
-  testSupabaseConnection,
   updateUser,
   updateLocation,
   updatePurpose,
   updateProduct,
   updateCategory,
+  testSupabaseConnection,
 } from "@/lib/supabase"
 
 // Types
@@ -496,7 +496,14 @@ export default function ProductRegistrationApp() {
       console.log("✅ Product updated successfully")
       setImportMessage("✅ Product bijgewerkt!")
       setTimeout(() => setImportMessage(""), 2000)
-      // Real-time subscription will update the UI automatically
+
+      // FORCE LOCAL STATE UPDATE
+      console.log("🔄 Forcing local products refresh...")
+      const refreshResult = await fetchProducts()
+      if (refreshResult.data) {
+        console.log("🔄 Updating local products state...")
+        setProducts(refreshResult.data)
+      }
     }
 
     setShowEditDialog(false)
