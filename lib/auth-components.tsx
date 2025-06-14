@@ -125,7 +125,7 @@ export function LoginForm() {
 
       if (error) {
         console.error("🔐 LoginForm: Login error:", error)
-        setError(error.message || "Login failed")
+        setError(error.message || "Ongeldige inloggegevens")
         return
       }
 
@@ -134,11 +134,11 @@ export function LoginForm() {
         // The AuthProvider will handle the state update via onAuthStateChange
         window.location.reload() // Force a refresh to ensure clean state
       } else {
-        setError("Login failed - no user data received")
+        setError("Login mislukt - geen gebruikersgegevens ontvangen")
       }
     } catch (error) {
       console.error("🔐 LoginForm: Login exception:", error)
-      setError("An unexpected error occurred")
+      setError("Er is een onverwachte fout opgetreden")
     } finally {
       setLoading(false)
     }
@@ -175,7 +175,7 @@ export function LoginForm() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@example.com"
+                  placeholder="naam@interflon.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -189,7 +189,7 @@ export function LoginForm() {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="admin123"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -225,19 +225,6 @@ export function LoginForm() {
                 {loading ? "Bezig met inloggen..." : "Inloggen"}
               </Button>
             </form>
-
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="text-sm font-medium text-blue-800 mb-2">Demo Toegang:</h3>
-              <div className="text-sm text-blue-700 space-y-1">
-                <div>
-                  <strong>Email:</strong> admin@example.com
-                </div>
-                <div>
-                  <strong>Wachtwoord:</strong> admin123
-                </div>
-              </div>
-              <p className="text-xs text-blue-600 mt-2">Gebruik deze gegevens om de demo versie te testen</p>
-            </div>
           </CardContent>
         </Card>
       </div>
