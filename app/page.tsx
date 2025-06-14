@@ -674,28 +674,43 @@ export default function ProductRegistrationApp() {
 
   // Attachment handlers
   const handleAttachmentUpload = async (product: Product, event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("📎 === ATTACHMENT UPLOAD DEBUG ===")
+    console.log("📎 Product:", product)
+    console.log("📎 Event:", event)
+
     const file = event.target.files?.[0]
-    if (!file) return
+    console.log("📎 Selected file:", file)
+
+    if (!file) {
+      console.log("❌ No file selected")
+      return
+    }
+
+    console.log("📎 File details:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      sizeInMB: (file.size / (1024 * 1024)).toFixed(2),
+    })
 
     if (file.type !== "application/pdf") {
+      console.log("❌ Invalid file type:", file.type)
       setImportError("Alleen PDF bestanden zijn toegestaan")
       setTimeout(() => setImportError(""), 3000)
       return
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      // 10MB limit
+      console.log("❌ File too large:", file.size)
       setImportError("Bestand is te groot (max 10MB)")
       setTimeout(() => setImportError(""), 3000)
       return
     }
 
     try {
-      console.log("📎 Uploading attachment for product:", product.name)
-
-      // For demo purposes, we'll create a blob URL
-      // In production, you would upload to Supabase Storage or another service
+      console.log("📎 Creating blob URL...")
       const attachmentUrl = URL.createObjectURL(file)
+      console.log("📎 Blob URL created:", attachmentUrl)
 
       const updateData = {
         name: product.name,
@@ -705,37 +720,52 @@ export default function ProductRegistrationApp() {
         attachment_name: file.name,
       }
 
+      console.log("📎 Update data:", updateData)
+      console.log("📎 Calling updateProduct with ID:", product.id)
+
+      setImportMessage("📎 Bezig met uploaden...")
+
       const result = await updateProduct(product.id, updateData)
+
+      console.log("📎 Update result:", result)
 
       if (result.error) {
         console.error("❌ Error uploading attachment:", result.error)
-        setImportError("Fout bij uploaden bijlage")
-        setTimeout(() => setImportError(""), 3000)
+        setImportError("Fout bij uploaden bijlage: " + (result.error.message || "Onbekende fout"))
+        setTimeout(() => setImportError(""), 5000)
       } else {
         console.log("✅ Attachment uploaded successfully")
         setImportMessage("✅ Bijlage toegevoegd!")
         setTimeout(() => setImportMessage(""), 2000)
 
-        // Force refresh products
+        // Force refresh products with debugging
+        console.log("🔄 Forcing products refresh...")
         const refreshResult = await fetchProducts()
+        console.log("🔄 Refresh result:", refreshResult)
+
         if (refreshResult.data) {
+          console.log("🔄 Setting new products data:", refreshResult.data.length, "products")
           setProducts(refreshResult.data)
+        } else {
+          console.log("❌ No data in refresh result")
         }
       }
     } catch (error) {
-      console.error("❌ Error uploading attachment:", error)
-      setImportError("Fout bij uploaden bijlage")
-      setTimeout(() => setImportError(""), 3000)
+      console.error("❌ Exception in handleAttachmentUpload:", error)
+      setImportError("Fout bij uploaden bijlage: " + (error instanceof Error ? error.message : "Onbekende fout"))
+      setTimeout(() => setImportError(""), 5000)
     }
 
     // Reset file input
+    console.log("🔄 Resetting file input")
     event.target.value = ""
   }
 
   const handleRemoveAttachment = async (product: Product) => {
-    try {
-      console.log("🗑️ Removing attachment for product:", product.name)
+    console.log("🗑️ === REMOVE ATTACHMENT DEBUG ===")
+    console.log("🗑️ Product:", product)
 
+    try {
       const updateData = {
         name: product.name,
         qr_code: product.qrcode || null,
@@ -744,27 +774,33 @@ export default function ProductRegistrationApp() {
         attachment_name: null,
       }
 
+      console.log("🗑️ Update data:", updateData)
+      setImportMessage("🗑️ Bezig met verwijderen...")
+
       const result = await updateProduct(product.id, updateData)
+      console.log("🗑️ Remove result:", result)
 
       if (result.error) {
         console.error("❌ Error removing attachment:", result.error)
-        setImportError("Fout bij verwijderen bijlage")
-        setTimeout(() => setImportError(""), 3000)
+        setImportError("Fout bij verwijderen bijlage: " + (result.error.message || "Onbekende fout"))
+        setTimeout(() => setImportError(""), 5000)
       } else {
         console.log("✅ Attachment removed successfully")
         setImportMessage("✅ Bijlage verwijderd!")
         setTimeout(() => setImportMessage(""), 2000)
 
         // Force refresh products
+        console.log("🔄 Forcing products refresh after removal...")
         const refreshResult = await fetchProducts()
         if (refreshResult.data) {
+          console.log("🔄 Setting new products data after removal")
           setProducts(refreshResult.data)
         }
       }
     } catch (error) {
-      console.error("❌ Error removing attachment:", error)
-      setImportError("Fout bij verwijderen bijlage")
-      setTimeout(() => setImportError(""), 3000)
+      console.error("❌ Exception in handleRemoveAttachment:", error)
+      setImportError("Fout bij verwijderen bijlage: " + (error instanceof Error ? error.message : "Onbekende fout"))
+      setTimeout(() => setImportError(""), 5000)
     }
   }
 
